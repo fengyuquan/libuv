@@ -218,36 +218,37 @@ typedef struct {
 } uv_lib_t;
 
 #define UV_LOOP_PRIVATE_FIELDS                                                \
-  unsigned long flags;                                                        \
-  int backend_fd;                                                             \
-  struct uv__queue pending_queue;                                             \
-  struct uv__queue watcher_queue;                                             \
-  uv__io_t** watchers;                                                        \
-  unsigned int nwatchers;                                                     \
-  unsigned int nfds;                                                          \
-  struct uv__queue wq;                                                        \
-  uv_mutex_t wq_mutex;                                                        \
-  uv_async_t wq_async;                                                        \
-  uv_rwlock_t cloexec_lock;                                                   \
-  uv_handle_t* closing_handles;                                               \
-  struct uv__queue process_handles;                                           \
-  struct uv__queue prepare_handles;                                           \
-  struct uv__queue check_handles;                                             \
-  struct uv__queue idle_handles;                                              \
-  struct uv__queue async_handles;                                             \
-  void (*async_unused)(void);  /* TODO(bnoordhuis) Remove in libuv v2. */     \
-  uv__io_t async_io_watcher;                                                  \
-  int async_wfd;                                                              \
+  unsigned long flags;                                                        /*标志位；Libuv 运行的一些标记，目前只有 UV_LOOP_BLOCK_SIGPROF，主要是用于 epoll_wait 的时候屏蔽 SIGPROF 信号，防止无效唤醒。*/  \
+  int backend_fd;                                                             /*后端文件描述符；事件驱动模块的 fd，比如调用 epoll_create 返回的 fd*/  \
+  struct uv__queue pending_queue;                                             /*待处理队列*/  \
+  struct uv__queue watcher_queue;                                             /*观察者队列；指向需要在事件驱动模块中注册事件的 IO 观察者队列*/  \
+  uv__io_t** watchers;                                                        /*观察者数组；watcher_queue 队列的节点 uv__io_t 中有一个 fd 字段，watchers 以 fd 为索引，记录 fd 所关联的 uv__io_t 结构体*/  \
+  unsigned int nwatchers;                                                     /*观察者数量；watchers 相关的数量，在 maybe_resize 函数里设置*/  \
+  unsigned int nfds;                                                          /*文件描述符数量；loop->watchers 中已使用的元素个数，一般为 watcher_queue 队列的节点数*/  \
+  struct uv__queue wq;                                                        /*工作队列；线程池的子线程处理完任务后把对应的结构体插入到 wq 队列，由主线程在 Poll IO 阶段处理*/  \
+  uv_mutex_t wq_mutex;                                                        /*工作队列互斥锁；控制 wq 队列互斥访问，否则多个子线程同时访问会有问题*/  \
+  uv_async_t wq_async;                                                        /*工作队列异步处理；用于线程池的子线程和主线程通信*/  \
+  uv_rwlock_t cloexec_lock;                                                   /*执行关闭操作的读写锁；用于设置 close-on-exec 时的锁，因为打开文件和设置 close-on-exec 不是原子操作（除非系统支持），所以需要一个锁控制这两个步骤是一个原子操作。*/  \
+  uv_handle_t* closing_handles;                                               /*正在关闭的句柄；事件循环 close 阶段的队列，由 uv_close 产生*/  \
+  struct uv__queue process_handles;                                           /*进程句柄队列；fork 出来的子进程队列*/  \
+  struct uv__queue prepare_handles;                                           /*准备句柄队列；事件循环的 prepare 阶段对应的任务队列*/  \
+  struct uv__queue check_handles;                                             /*检查句柄队列；事件循环的 check 阶段对应的任务队列*/  \
+  struct uv__queue idle_handles;                                              /*空闲句柄队列；事件循环的 idle 阶段对应的任务队列*/  \
+  struct uv__queue async_handles;                                             /*异步句柄队列；async_handles 队列，Poll IO 阶段执行 uv__async_io 遍历 async_handles 队列，处理里面 pending 为 1 的节点，然后执行它的回调*/  \
+  void (*async_unused)(void);  /* TODO(bnoordhuis) Remove in libuv v2. */     /*未使用的异步函数，将在libuv v2中移除*/  \
+  uv__io_t async_io_watcher;                                                  /*异步IO观察者；用于线程间通信 async handle 的 IO 观察者。用于监听是否有 async handle 任务需要处理*/  \
+  int async_wfd;                                                              /*异步写文件描述符；用于保存子线程和主线程通信的写端 fd*/  \
   struct {                                                                    \
-    void* min;                                                                \
-    unsigned int nelts;                                                       \
-  } timer_heap;                                                               \
-  uint64_t timer_counter;                                                     \
-  uint64_t time;                                                              \
-  int signal_pipefd[2];                                                       \
-  uv__io_t signal_io_watcher;                                                 \
-  uv_signal_t child_watcher;                                                  \
-  int emfile_fd;                                                              \
+    void* min;                                                                /*最小值*/  \
+    unsigned int nelts;                                                       /*元素数量*/  \
+  } timer_heap;                                                               /*定时器堆；保存定时器二叉堆结构*/  \
+  uint64_t timer_counter;                                                     /*定时器计数器；管理定时器节点的递增 id*/  \
+  uint64_t time;                                                              /*时间；当前时间，Libuv 会在每次事件循环的开始和 Poll IO 阶段更新当前时间，然后在后续的各个阶段使用，减少系统调用次数*/  \
+  int signal_pipefd[2];                                                       /*信号管道文件描述符；fork 出来的进程和主进程通信的管道，用于子进程收到信号的时候通知主进程，然后主进程执行子进程节点注册的回调*/  \
+  uv__io_t signal_io_watcher;                                                 /*信号IO观察者；用于信号处理的 IO 观察者，类似 async_io_watcher，signal_io_watcher 保存了管道读端 fd 和回调，然后注册到事件驱动模块中，在子进程收到信号的时候，通过 write 写到管道，最后主进程在 Poll IO 阶段执行回调*/  \
+  uv_signal_t child_watcher;                                                  /*子进程观察者；用于管理子进程退出信号的 handle*/  \
+  int emfile_fd;                                                              /*备用的 fd; 当服务器处理连接因 fd 耗尽而失败时，可以使用 emfile_fd*/  \
+
   UV_PLATFORM_LOOP_FIELDS                                                     \
 
 #define UV_REQ_TYPE_PRIVATE /* empty */

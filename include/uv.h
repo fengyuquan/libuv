@@ -1867,20 +1867,27 @@ union uv_any_req {
 
 struct uv_loop_s {
   /* User data - use this for whatever. */
-  void* data;
+  void* data;  // 用户数据 - 可以用于任何目的
+
   /* Loop reference counting. */
-  unsigned int active_handles;
-  struct uv__queue handle_queue;
-  union {
-    void* unused;
-    unsigned int count;
-  } active_reqs;
+  unsigned int active_handles;  // 活跃的 handle 个数，大于 0 则事件循环不会退出，除非显式调用 uv_stop
+
+  struct uv__queue handle_queue;  // handle 队列，包括活跃和非活跃的
+
+  union { // request 个数，大于 0 则事件循环不会退出，除非显式调用 uv_stop
+    void* unused;  // 未使用
+    unsigned int count;  // 计数
+  } active_reqs;  // 活动请求
+
   /* Internal storage for future extensions. */
-  void* internal_fields;
+  void* internal_fields;  // 用于未来扩展的内部存储
+
   /* Internal flag to signal loop stop. */
-  unsigned int stop_flag;
-  UV_LOOP_PRIVATE_FIELDS
+  unsigned int stop_flag;  // 用于信号循环停止的内部标志; 标记事件循环是否结束的标记，由 uv_stop 设置
+  
+  UV_LOOP_PRIVATE_FIELDS  // UV循环私有字段
 };
+
 
 UV_EXTERN void* uv_loop_get_data(const uv_loop_t*);
 UV_EXTERN void uv_loop_set_data(uv_loop_t*, void* data);
