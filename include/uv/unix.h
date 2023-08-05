@@ -324,9 +324,9 @@ typedef struct {
   struct uv__queue queue;                                                     \
 
 #define UV_ASYNC_PRIVATE_FIELDS                                               \
-  uv_async_cb async_cb;                                                       \
-  struct uv__queue queue;                                                     \
-  int pending;                                                                \
+  uv_async_cb async_cb;    /* 异步回调函数; 异步事件触发时执行的回调 */                                                      \
+  struct uv__queue queue;  /* 队列结构体; 用于插入 async->handles 队列 */                                                     \
+  int pending;             /* 标记是否有任务需要处理，为 1 说明需要执行回调 async_cb 处理任务 */                                                               \
 
 #define UV_TIMER_PRIVATE_FIELDS                                               \
   uv_timer_cb timer_cb;                                                       \
