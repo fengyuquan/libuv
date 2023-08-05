@@ -517,9 +517,9 @@ UV_EXTERN int uv_socketpair(int type,
 
 #define UV_STREAM_FIELDS                                                      \
   /* number of bytes queued for writing */                                    \
-  size_t write_queue_size;                                                    \
-  uv_alloc_cb alloc_cb;                                                       \
-  uv_read_cb read_cb;                                                         \
+  size_t write_queue_size;  /* 写入队列的字节数; 等待发送的字节数，当我们往底层写入数据或往对端发送数据时，Libuv 可能会先缓存起来，等待合适的时机再进行写操作 */                                                    \
+  uv_alloc_cb alloc_cb;  /* 分配内存的函数，用调用方设置，比如 Node.js */                                                       \
+  uv_read_cb read_cb;  /* 数据可读事件触发时执行的回调 */                                                         \
   /* private */                                                               \
   UV_STREAM_PRIVATE_FIELDS
 

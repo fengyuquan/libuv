@@ -284,15 +284,16 @@ typedef struct {
   unsigned int flags;                /* handle 的状态和标记 */                                         \
 
 #define UV_STREAM_PRIVATE_FIELDS                                              \
-  uv_connect_t *connect_req;                                                  \
-  uv_shutdown_t *shutdown_req;                                                \
-  uv__io_t io_watcher;                                                        \
-  struct uv__queue write_queue;                                               \
-  struct uv__queue write_completed_queue;                                     \
-  uv_connection_cb connection_cb;                                             \
-  int delayed_error;                                                          \
-  int accepted_fd;                                                            \
-  void* queued_fds;                                                           \
+  uv_connect_t *connect_req;                /* 连接请求；发起连接时，保存连接上下文的结构体 */ \
+  uv_shutdown_t *shutdown_req;              /* 关闭请求；关闭写端时，保存上下文的结构体 */ \
+  uv__io_t io_watcher;                      /* IO观察者；用于插入事件驱动模块的 IO 观察者，注册读写事件 */ \
+  struct uv__queue write_queue;             /* 写入队列；待发送队列，记录了等待写操作的数据和元信息，和 write_queue_size 配合 */ \
+  struct uv__queue write_completed_queue;   /* 已完成写入的队列；发送完成的队列，write_queue 的节点发生完毕后就会插入 write_completed_queue 队列，等待执行写结束回调 */ \
+  uv_connection_cb connection_cb;           /* 连接回调；收到连接时执行的回调 */ \
+  int delayed_error;                        /* 延迟错误；socket 操作失败的错误码，比如连接失败 */ \
+  int accepted_fd;                          /* 已接受的文件描述符；accept 返回的 fd 或者 IPC 时收到的文件描述符 */ \
+  void* queued_fds;                         /* 队列中的文件描述符；用于 IPC，accepted_fd 只能保存一个 fd，queued_fds 用于保存剩下的 */ \
+
   UV_STREAM_PRIVATE_PLATFORM_FIELDS                                           \
 
 #define UV_TCP_PRIVATE_FIELDS /* empty */
