@@ -412,70 +412,76 @@ int uv_loop_alive(const uv_loop_t* loop) {
 
 
 int uv_run(uv_loop_t* loop, uv_run_mode mode) {
-  int timeout;
-  int r;
-  int can_sleep;
+  int timeout;  // 定义超时变量
+  int r;  // 定义结果变量
+  int can_sleep;  // 定义是否可以睡眠的变量
 
-  r = uv__loop_alive(loop);
+  r = uv__loop_alive(loop);  // 检查循环是否活跃
   if (!r)
-    uv__update_time(loop);
+    uv__update_time(loop);  // 如果循环不活跃，更新时间
 
+  /* 为了保持向后兼容性，在进入UV_RUN_DEFAULT的while循环之前处理定时器。
+   * 否则，定时器只需要执行一次，这应该在轮询之后完成，以保持概念事件循环的正确执行顺序。 */
   /* Maintain backwards compatibility by processing timers before entering the
    * while loop for UV_RUN_DEFAULT. Otherwise timers only need to be executed
    * once, which should be done after polling in order to maintain proper
    * execution order of the conceptual event loop. */
   if (mode == UV_RUN_DEFAULT && r != 0 && loop->stop_flag == 0) {
-    uv__update_time(loop);
-    uv__run_timers(loop);
+    uv__update_time(loop);  // 更新当前时间，每轮事件循环会缓存这个时间，避免过多系统调用损耗性能
+    uv__run_timers(loop);  // ==========运行定时器队列==========
   }
 
-  while (r != 0 && loop->stop_flag == 0) {
+  // 当循环活跃且未停止时，执行循环
+  while (r != 0 && loop->stop_flag == 0) 
+  {  
     can_sleep =
-        uv__queue_empty(&loop->pending_queue) &&
-        uv__queue_empty(&loop->idle_handles);
+        uv__queue_empty(&loop->pending_queue) &&  // 检查待处理队列是否为空
+        uv__queue_empty(&loop->idle_handles);  // 检查空闲句柄队列是否为空
 
-    uv__run_pending(loop);
-    uv__run_idle(loop);
-    uv__run_prepare(loop);
+    uv__run_pending(loop);  // ==========运行待处理的队列==========
+    uv__run_idle(loop);  // ==========运行空闲的队列==========
+    uv__run_prepare(loop);  // ==========运行准备的队列==========
 
-    timeout = 0;
+    timeout = 0;  // 初始化超时为0，并在下面设置超时时间。超时时间用于计算 Poll IO 阻塞时间。如果timeout不为0，在阻塞时间达到这个值后，就会退出阻塞状态，然后执行timeout队列
     if ((mode == UV_RUN_ONCE && can_sleep) || mode == UV_RUN_DEFAULT)
-      timeout = uv__backend_timeout(loop);
+      timeout = uv__backend_timeout(loop);  // 如果模式为UV_RUN_ONCE且可以睡眠，或者模式为UV_RUN_DEFAULT，设置超时
 
-    uv__metrics_inc_loop_count(loop);
+    uv__metrics_inc_loop_count(loop);  // 增加循环计数
 
-    uv__io_poll(loop, timeout);
+    uv__io_poll(loop, timeout);  // ==========轮询IO；Poll IO timeout是 epoll_wait 的等待时间==========
 
     /* Process immediate callbacks (e.g. write_cb) a small fixed number of
      * times to avoid loop starvation.*/
-    for (r = 0; r < 8 && !uv__queue_empty(&loop->pending_queue); r++)
-      uv__run_pending(loop);
+    for (r = 0; r < 8 && !uv__queue_empty(&loop->pending_queue); r++)  // 避免循环饥饿，处理一小部分立即回调
+      uv__run_pending(loop);  // ==========运行待处理的队列==========
 
     /* Run one final update on the provider_idle_time in case uv__io_poll
      * returned because the timeout expired, but no events were received. This
      * call will be ignored if the provider_entry_time was either never set (if
      * the timeout == 0) or was already updated b/c an event was received.
      */
-    uv__metrics_update_idle_time(loop);
+    uv__metrics_update_idle_time(loop);  // 更新空闲时间
 
-    uv__run_check(loop);
-    uv__run_closing_handles(loop);
+    // 继续执行各种队列
+    uv__run_check(loop); // ==========运行check的队列==========
+    uv__run_closing_handles(loop); // ==========运行close的队列==========
+    
+    uv__update_time(loop);  // 更新时间
+    uv__run_timers(loop);  // ==========运行定时器队列==========
 
-    uv__update_time(loop);
-    uv__run_timers(loop);
-
-    r = uv__loop_alive(loop);
-    if (mode == UV_RUN_ONCE || mode == UV_RUN_NOWAIT)
+    r = uv__loop_alive(loop);  // 检查循环是否还有活跃任务，有则继续下一轮事件循环
+    if (mode == UV_RUN_ONCE || mode == UV_RUN_NOWAIT)  // 如果模式为UV_RUN_ONCE或UV_RUN_NOWAIT，跳出循环
       break;
   }
 
   /* The if statement lets gcc compile it to a conditional store. Avoids
    * dirtying a cache line.
    */
-  if (loop->stop_flag != 0)
-    loop->stop_flag = 0;
+  if (loop->stop_flag != 0)  // 如果停止标志不为0
+    loop->stop_flag = 0;  // 设置停止标志为0
 
-  return r;
+  return r;  // 返回结果
+
 }
 
 
