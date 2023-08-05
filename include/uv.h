@@ -460,17 +460,17 @@ struct uv_shutdown_s {
 
 #define UV_HANDLE_FIELDS                                                      \
   /* public */                                                                \
-  void* data;                                                                 \
+  void* data;                                                    /* 自定义数据，用于关联一些上下文, Node.js 中用于关联 handle 所属的 C++ 对象   */\
   /* read-only */                                                             \
-  uv_loop_t* loop;                                                            \
-  uv_handle_type type;                                                        \
+  uv_loop_t* loop;                                               /* 所属的事件循环 */\
+  uv_handle_type type;                                           /* handle 类型，比如 TCP、UDP */\
   /* private */                                                               \
-  uv_close_cb close_cb;                                                       \
-  struct uv__queue handle_queue;                                              \
+  uv_close_cb close_cb;                                          /* handle 调用 uv_close 后，在 closing 阶段被执行的回调 */\
+  struct uv__queue handle_queue;                                 /* 用于插入 handle 队列 */\
   union {                                                                     \
-    int fd;                                                                   \
-    void* reserved[4];                                                        \
-  } u;                                                                        \
+    int fd;                                                      /* 文件描述符 */\
+    void* reserved[4];                                           /* 预留空间 */\
+  } u;                                                           /* 只用于 Windows 平台 */            \
   UV_HANDLE_PRIVATE_FIELDS                                                    \
 
 /* The abstract base class of all handles. */

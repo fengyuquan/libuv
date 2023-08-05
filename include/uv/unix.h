@@ -280,8 +280,8 @@ typedef struct {
   uv_buf_t bufsml[4];                                                         \
 
 #define UV_HANDLE_PRIVATE_FIELDS                                              \
-  uv_handle_t* next_closing;                                                  \
-  unsigned int flags;                                                         \
+  uv_handle_t* next_closing;         /* 当 handle 在 close 队列时，该字段指向下一个 close 节点 */\
+  unsigned int flags;                /* handle 的状态和标记 */                                         \
 
 #define UV_STREAM_PRIVATE_FIELDS                                              \
   uv_connect_t *connect_req;                                                  \
