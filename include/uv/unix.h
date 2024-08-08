@@ -223,26 +223,26 @@ typedef struct
 } uv_lib_t;
 
 #define UV_LOOP_PRIVATE_FIELDS                                                                                                                                                                                                                                                                                                   \
-  unsigned long flags;                                                   /*标志位；Libuv 运行的一些标记，目前只有 UV_LOOP_BLOCK_SIGPROF，主要是用于 epoll_wait 的时候屏蔽 SIGPROF 信号，防止无效唤醒。*/                                                                                    \
-  int backend_fd;                                                        /*后端文件描述符；事件驱动模块的 fd，比如调用 epoll_create 返回的 fd*/                                                                                                                                                           \
-  struct uv__queue pending_queue;                                        /*待处理队列*/                                                                                                                                                                                                                                     \
-  struct uv__queue watcher_queue;                                        /*观察者队列；指向需要在事件驱动模块中注册事件的 IO 观察者队列*/                                                                                                                                                            \
-  uv__io_t **watchers;                                                   /*观察者数组；watcher_queue 队列的节点 uv__io_t 中有一个 fd 字段，watchers 以 fd 为索引，记录 fd 所关联的 uv__io_t 结构体*/                                                                                             \
-  unsigned int nwatchers;                                                /*观察者数量；watchers 相关的数量，在 maybe_resize 函数里设置*/                                                                                                                                                                       \
-  unsigned int nfds;                                                     /*文件描述符数量；loop->watchers 中已使用的元素个数，一般为 watcher_queue 队列的节点数*/                                                                                                                                     \
-  struct uv__queue wq;                                                   /*工作队列；线程池的子线程处理完任务后把对应的结构体插入到 wq 队列，由主线程在 Poll IO 阶段处理*/                                                                                                               \
-  uv_mutex_t wq_mutex;                                                   /*工作队列互斥锁；控制 wq 队列互斥访问，否则多个子线程同时访问会有问题*/                                                                                                                                                \
-  uv_async_t wq_async;                                                   /*工作队列异步处理；用于线程池的子线程和主线程通信*/                                                                                                                                                                            \
-  uv_rwlock_t cloexec_lock;                                              /*执行关闭操作的读写锁；用于设置 close-on-exec 时的锁，因为打开文件和设置 close-on-exec 不是原子操作（除非系统支持），所以需要一个锁控制这两个步骤是一个原子操作。*/                   \
-  uv_handle_t *closing_handles;                                          /*正在关闭的句柄；事件循环 close 阶段的队列，由 uv_close 产生*/                                                                                                                                                                    \
-  struct uv__queue process_handles;                                      /*进程句柄队列；fork 出来的子进程队列*/                                                                                                                                                                                                  \
-  struct uv__queue prepare_handles;                                      /*准备句柄队列；事件循环的 prepare 阶段对应的任务队列*/                                                                                                                                                                            \
-  struct uv__queue check_handles;                                        /*检查句柄队列；事件循环的 check 阶段对应的任务队列*/                                                                                                                                                                              \
-  struct uv__queue idle_handles;                                         /*空闲句柄队列；事件循环的 idle 阶段对应的任务队列*/                                                                                                                                                                               \
-  struct uv__queue async_handles;                                        /*异步句柄队列；async_handles 队列，Poll IO 阶段执行 uv__async_io 遍历 async_handles 队列，处理里面 pending 为 1 的节点，然后执行它的回调*/                                                                         \
-  void (*async_unused)(void); /* TODO(bnoordhuis) Remove in libuv v2. */ /*未使用的异步函数，将在libuv v2中移除*/                                                                                                                                                                                                  \
-  uv__io_t async_io_watcher;                                             /*异步IO观察者；用于线程间通信 async handle 的 IO 观察者。用于监听是否有 async handle 任务需要处理*/                                                                                                                     \
-  int async_wfd;                                                         /*异步写文件描述符；用于保存子线程和主线程通信的写端 fd*/                                                                                                                                                                      \
+  unsigned long flags;              /*标志位；Libuv 运行的一些标记，目前只有 UV_LOOP_BLOCK_SIGPROF，主要是用于 epoll_wait 的时候屏蔽 SIGPROF 信号，防止无效唤醒。*/                                                                                                                         \
+  int backend_fd;                   /*后端文件描述符；事件驱动模块的 fd，比如调用 epoll_create 返回的 fd*/                                                                                                                                                                                                \
+  struct uv__queue pending_queue;   /*待处理队列*/                                                                                                                                                                                                                                                                          \
+  struct uv__queue watcher_queue;   /*观察者队列；指向需要在事件驱动模块中注册事件的 IO 观察者队列*/                                                                                                                                                                                                 \
+  uv__io_t **watchers;              /*观察者数组；watcher_queue 队列的节点 uv__io_t 中有一个 fd 字段，watchers 以 fd 为索引，记录 fd 所关联的 uv__io_t 结构体*/                                                                                                                                  \
+  unsigned int nwatchers;           /*观察者数量；watchers 相关的数量，在 maybe_resize 函数里设置*/                                                                                                                                                                                                            \
+  unsigned int nfds;                /*文件描述符数量；loop->watchers 中已使用的元素个数，一般为 watcher_queue 队列的节点数*/                                                                                                                                                                          \
+  struct uv__queue wq;              /*工作队列；线程池的子线程处理完任务后把对应的结构体插入到 wq 队列，由主线程在 Poll IO 阶段处理*/                                                                                                                                                    \
+  uv_mutex_t wq_mutex;              /*工作队列互斥锁；控制 wq 队列互斥访问，否则多个子线程同时访问会有问题*/                                                                                                                                                                                     \
+  uv_async_t wq_async;              /*工作队列异步处理；用于线程池的子线程和主线程通信*/                                                                                                                                                                                                                 \
+  uv_rwlock_t cloexec_lock;         /*执行关闭操作的读写锁；用于设置 close-on-exec 时的锁，因为打开文件和设置 close-on-exec 不是原子操作（除非系统支持），所以需要一个锁控制这两个步骤是一个原子操作。*/                                                        \
+  uv_handle_t *closing_handles;     /*正在关闭的句柄；事件循环 close 阶段的队列，由 uv_close 产生*/                                                                                                                                                                                                         \
+  struct uv__queue process_handles; /*进程句柄队列；fork 出来的子进程队列*/                                                                                                                                                                                                                                       \
+  struct uv__queue prepare_handles; /*准备句柄队列；事件循环的 prepare 阶段对应的任务队列*/                                                                                                                                                                                                                 \
+  struct uv__queue check_handles;   /*检查句柄队列；事件循环的 check 阶段对应的任务队列*/                                                                                                                                                                                                                   \
+  struct uv__queue idle_handles;    /*空闲句柄队列；事件循环的 idle 阶段对应的任务队列*/                                                                                                                                                                                                                    \
+  struct uv__queue async_handles;   /*异步句柄队列；async_handles 队列，Poll IO 阶段执行 uv__async_io 遍历 async_handles 队列，处理里面 pending 为 1 的节点，然后执行它的回调*/                                                                                                              \
+  void (*async_unused)(void);       /*未使用的异步函数，将在libuv v2中移除*/                                                                                                                                                                                                                                       \
+  uv__io_t async_io_watcher;        /*异步IO观察者；用于线程间通信 async handle 的 IO 观察者。用于监听是否有 async handle 任务需要处理*/                                                                                                                                                          \
+  int async_wfd;                    /*异步写文件描述符；用于保存子线程和主线程通信的写端 fd*/                                                                                                                                                                                                           \
   struct                                                                                                                                                                                                                                                                                                                         \
   {                                                                                                                                                                                                                                                                                                                              \
     void *min;                /*最小值*/                                                                                                                                                                                                                                                                                      \
@@ -263,26 +263,26 @@ UV_PLATFORM_LOOP_FIELDS
 
 #define UV_PRIVATE_REQ_TYPES /* empty */
 
-#define UV_WRITE_PRIVATE_FIELDS \
-  struct uv__queue queue;       \
-  unsigned int write_index;     \
-  uv_buf_t *bufs;               \
-  unsigned int nbufs;           \
-  int error;                    \
-  uv_buf_t bufsml[4];
+#define UV_WRITE_PRIVATE_FIELDS                               \
+  struct uv__queue queue;   /*用于插入队列*/            \
+  unsigned int write_index; /*当前待写的 buffer 下标*/ \
+  uv_buf_t *bufs;           /*buffer 总数*/                 \
+  unsigned int nbufs;                                         \
+  int error;          /*写出错的错误码 */              \
+  uv_buf_t bufsml[4]; /*存储数据的 buffer，uv_buf_t 记录了数据的开始地址和长度，4 个不够则需要动态分配内存 */
 
 #define UV_CONNECT_PRIVATE_FIELDS \
-  struct uv__queue queue;
+  struct uv__queue queue; /*用于插入队列*/
 
 #define UV_SHUTDOWN_PRIVATE_FIELDS /* empty */
 
-#define UV_UDP_SEND_PRIVATE_FIELDS \
-  struct uv__queue queue;          \
-  struct sockaddr_storage addr;    \
-  unsigned int nbufs;              \
-  uv_buf_t *bufs;                  \
-  ssize_t status;                  \
-  uv_udp_send_cb send_cb;          \
+#define UV_UDP_SEND_PRIVATE_FIELDS                                                \
+  struct uv__queue queue;                                                         \
+  struct sockaddr_storage addr; /*发送的目的地址*/                         \
+  unsigned int nbufs;           /*保存了发送数据的缓冲区和个数*/    \
+  uv_buf_t *bufs;                                                                 \
+  ssize_t status;         /*发送状态或成功发送的字节数*/             \
+  uv_udp_send_cb send_cb; /*发送完执行的回调（发送成功或失败）*/ \
   uv_buf_t bufsml[4];
 
 #define UV_HANDLE_PRIVATE_FIELDS                                                                          \
@@ -315,7 +315,7 @@ UV_STREAM_PRIVATE_PLATFORM_FIELDS
   const char *pipe_fname; /* NULL or strdup'ed */
 
 #define UV_POLL_PRIVATE_FIELDS \
-  uv__io_t io_watcher;
+  uv__io_t io_watcher; /*保存了 fd 和回调的 IO 观察者，注册到事件驱动模块中*/
 
 #define UV_PREPARE_PRIVATE_FIELDS \
   uv_prepare_cb prepare_cb;       \
@@ -345,65 +345,69 @@ UV_STREAM_PRIVATE_PLATFORM_FIELDS
   uint64_t repeat;              \
   uint64_t start_id;
 
-#define UV_GETADDRINFO_PRIVATE_FIELDS \
-  struct uv__work work_req;           \
-  uv_getaddrinfo_cb cb;               \
-  struct addrinfo *hints;             \
-  char *hostname;                     \
-  char *service;                      \
-  struct addrinfo *addrinfo;          \
-  int retcode;
+#define UV_GETADDRINFO_PRIVATE_FIELDS                                                          \
+  struct uv__work work_req; /*用于异步 DNS 解析时插入线程池任务队列的节点*/ \
+  uv_getaddrinfo_cb cb;     /*DNS 解析完后执行的回调*/                                \
+  /*DNS 查询的配置*/                                                                      \
+  struct addrinfo *hints;                                                                      \
+  char *hostname;                                                                              \
+  char *service;                                                                               \
+  struct addrinfo *addrinfo; /*DNS 解析结果 */                                             \
+  int retcode;               /*DNS 解析的返回码*/
 
-#define UV_GETNAMEINFO_PRIVATE_FIELDS \
-  struct uv__work work_req;           \
-  uv_getnameinfo_cb getnameinfo_cb;   \
-  struct sockaddr_storage storage;    \
-  int flags;                          \
-  char host[NI_MAXHOST];              \
-  char service[NI_MAXSERV];           \
-  int retcode;
+#define UV_GETNAMEINFO_PRIVATE_FIELDS                                                          \
+  struct uv__work work_req; /*用于异步 DNS 解析时插入线程池任务队列的节点*/ \
+  uv_getnameinfo_cb getnameinfo_cb;                                                            \
+  struct sockaddr_storage storage; /*需要查询的地址信息*/                             \
+  int flags;                       /*指示查询返回的信息*/                             \
+  char host[NI_MAXHOST];           /*查询返回的信息*/                                   \
+  char service[NI_MAXSERV];                                                                    \
+  int retcode; /*查询返回码*/
 
 #define UV_PROCESS_PRIVATE_FIELDS \
   struct uv__queue queue;         \
-  int status;
+  int status; /*退出码，进程退出时设置*/
 
-#define UV_FS_PRIVATE_FIELDS \
-  const char *new_path;      \
-  uv_file file;              \
-  int flags;                 \
-  mode_t mode;               \
-  unsigned int nbufs;        \
-  uv_buf_t *bufs;            \
-  off_t off;                 \
-  uv_uid_t uid;              \
-  uv_gid_t gid;              \
-  double atime;              \
-  double mtime;              \
-  struct uv__work work_req;  \
-  uv_buf_t bufsml[4];
+#define UV_FS_PRIVATE_FIELDS                                                                                  \
+  const char *new_path; /*文件操作涉及到两个路径时，保存目的路径，比如复制文件时*/ \
+  uv_file file;         /*文件描述符*/                                                                   \
+  int flags;            /*文件标记*/                                                                      \
+  mode_t mode;          /*操作模式*/                                                                      \
+  unsigned int nbufs;                                                                                         \
+  uv_buf_t *bufs; /*写文件时传入的数据和个数    */                                                \
+  off_t off;      /*文件偏移*/                                                                            \
+  uv_uid_t uid;   /*保存需要设置的 uid 和 gid，例如 chmod 的时候*/                              \
+  uv_gid_t gid;                                                                                               \
+  double atime; /*保存需要设置的文件修改、访问时间，例如 fs.utimes 的时候*/             \
+  double mtime;                                                                                               \
+  struct uv__work work_req; /*异步的时候用于插入任务队列，保存工作函数，回调函数*/   \
+  uv_buf_t bufsml[4];       /*保存读取数据。例如 read 和 sendfile*/
 
 #define UV_WORK_PRIVATE_FIELDS \
-  struct uv__work work_req;
+  struct uv__work work_req; /*封装一个 work 插入到线程池队列，work_req 的 work 和 done 函数是 work_cb 和after_work_cb 的 wrapper*/
 
 #define UV_TTY_PRIVATE_FIELDS  \
   struct termios orig_termios; \
   int mode;
 
-#define UV_SIGNAL_PRIVATE_FIELDS                                     \
-  /* RB_ENTRY(uv_signal_s) tree_entry; */                            \
-  struct                                                             \
-  {                                                                  \
-    struct uv_signal_s *rbe_left;                                    \
-    struct uv_signal_s *rbe_right;                                   \
-    struct uv_signal_s *rbe_parent;                                  \
-    int rbe_color;                                                   \
-  } tree_entry;                                                      \
-  /* Use two counters here so we don have to fiddle with atomics. */ \
-  unsigned int caught_signals;                                       \
-  unsigned int dispatched_signals;
+#define UV_SIGNAL_PRIVATE_FIELDS                                                                                      \
+  /* RB_ENTRY(uv_signal_s) tree_entry; */                                                                             \
+  /*用于插入红黑树，进程把感兴趣的信号和回调封装成 uv_signal_s，然后插入到红黑树，*/ \
+  /*信号到来时，进程在信号处理号中把通知写入管道，通知 Libuv。*/                            \
+  /*Libuv 在 Poll IO 阶段会执行进程对应的回调。红黑树节点的定义如下*/                         \
+  struct                                                                                                              \
+  {                                                                                                                   \
+    struct uv_signal_s *rbe_left;                                                                                     \
+    struct uv_signal_s *rbe_right;                                                                                    \
+    struct uv_signal_s *rbe_parent;                                                                                   \
+    int rbe_color;                                                                                                    \
+  } tree_entry;                                                                                                       \
+  /* Use two counters here so we don have to fiddle with atomics. */                                                  \
+  unsigned int caught_signals;     /*收到的信号个数*/                                                          \
+  unsigned int dispatched_signals; /*已经处理的信号个数*/
 
-#define UV_FS_EVENT_PRIVATE_FIELDS \
-  uv_fs_event_cb cb;               \
+#define UV_FS_EVENT_PRIVATE_FIELDS                      \
+  uv_fs_event_cb cb; /*文件改变时执行的回调*/ \
   UV_PLATFORM_FS_EVENT_FIELDS
 
 /* fs open() flags supported on this platform: */

@@ -35,17 +35,17 @@
 #include <string.h>
 
 struct poll_ctx {
-  uv_fs_poll_t* parent_handle;
-  int busy_polling;
-  unsigned int interval;
-  uint64_t start_time;
-  uv_loop_t* loop;
-  uv_fs_poll_cb poll_cb;
-  uv_timer_t timer_handle;
-  uv_fs_t fs_req; /* TODO(bnoordhuis) mark fs_req internal */
-  uv_stat_t statbuf;
+  uv_fs_poll_t* parent_handle; /*对应的 handle*/
+  int busy_polling; /*标记是否开始轮询和轮询时的失败原因*/
+  unsigned int interval; /*多久检测一次文件内容是否改变*/
+  uint64_t start_time; /*每一轮轮询时获取文件内容的时间点*/
+  uv_loop_t* loop; /*所属事件循环*/
+  uv_fs_poll_cb poll_cb; /*文件改变时回调*/
+  uv_timer_t timer_handle; /*定时器，用于定时超时后轮询*/
+  uv_fs_t fs_req; /* TODO(bnoordhuis) mark fs_req internal *//*记录轮询的一下上下文信息，文件路径、回调等*/
+  uv_stat_t statbuf; /*轮询时保存操作系统返回的文件信息*/
   struct poll_ctx* previous; /* context from previous start()..stop() period */
-  char path[1]; /* variable length */
+  char path[1]; /* variable length */ /*监听的文件路径，字符串的值追加在结构体后面*/
 };
 
 static int statbuf_eq(const uv_stat_t* a, const uv_stat_t* b);

@@ -437,13 +437,13 @@ extern "C"
   UV_EXTERN const char *uv_err_name(int err);
   UV_EXTERN char *uv_err_name_r(int err, char *buf, size_t buflen);
 
-#define UV_REQ_FIELDS \
-  /* public */        \
-  void *data;         \
-  /* read-only */     \
-  uv_req_type type;   \
-  /* private */       \
-  void *reserved[6];  \
+#define UV_REQ_FIELDS                                                    \
+  /* public */                                                           \
+  void *data;                                                            \
+  /* read-only */                                                        \
+  uv_req_type type; /*request 类型，比如文件操作、DNS 查询*/ \
+  /* private */                                                          \
+  void *reserved[6]; /*保留字段 */                                   \
   UV_REQ_PRIVATE_FIELDS
 
   /* Abstract base class of all requests. */
@@ -462,8 +462,8 @@ extern "C"
   struct uv_shutdown_s
   {
     UV_REQ_FIELDS
-    uv_stream_t *handle;
-    uv_shutdown_cb cb;
+    uv_stream_t *handle; /*被操作的流，比如 TCP*/
+    uv_shutdown_cb cb;   /*关闭流的写端后执行的回调*/
     UV_SHUTDOWN_PRIVATE_FIELDS
   };
 
@@ -580,9 +580,9 @@ extern "C"
   struct uv_write_s
   {
     UV_REQ_FIELDS
-    uv_write_cb cb;
-    uv_stream_t *send_handle; /* TODO: make private and unix-only in v2.x. */
-    uv_stream_t *handle;
+    uv_write_cb cb;                                                           /*写完后执行的回调*/
+    uv_stream_t *send_handle; /* TODO: make private and unix-only in v2.x. */ /*需要传递的文件描述符，在 send_handle 的 fd 中*/
+    uv_stream_t *handle;                                                      /*往哪个 handle 写入*/
     UV_WRITE_PRIVATE_FIELDS
   };
 
@@ -650,8 +650,8 @@ extern "C"
   struct uv_connect_s
   {
     UV_REQ_FIELDS
-    uv_connect_cb cb;
-    uv_stream_t *handle;
+    uv_connect_cb cb;    /*连接成功后执行的回调*/
+    uv_stream_t *handle; /*对应的流，比如 TCP*/
     UV_CONNECT_PRIVATE_FIELDS
   };
 
@@ -745,7 +745,7 @@ extern "C"
   struct uv_udp_send_s
   {
     UV_REQ_FIELDS
-    uv_udp_t *handle;
+    uv_udp_t *handle; /*所属 handle*/
     uv_udp_send_cb cb;
     UV_UDP_SEND_PRIVATE_FIELDS
   };
@@ -902,7 +902,7 @@ extern "C"
   struct uv_poll_s
   {
     UV_HANDLE_FIELDS
-    uv_poll_cb poll_cb;
+    uv_poll_cb poll_cb; /*监听的 fd 感兴趣的事件触发时执行的回调*/
     UV_POLL_PRIVATE_FIELDS
   };
 
@@ -1172,7 +1172,7 @@ extern "C"
   struct uv_process_s
   {
     UV_HANDLE_FIELDS
-    uv_exit_cb exit_cb;
+    uv_exit_cb exit_cb; /*进程退出时执行的回调*/
     int pid;
     UV_PROCESS_PRIVATE_FIELDS
   };
@@ -1191,8 +1191,8 @@ extern "C"
   {
     UV_REQ_FIELDS
     uv_loop_t *loop;
-    uv_work_cb work_cb;
-    uv_after_work_cb after_work_cb;
+    uv_work_cb work_cb; /*处理任务的函数*/
+    uv_after_work_cb after_work_cb; /*处理完任务后执行的函数*/
     UV_WORK_PRIVATE_FIELDS
   };
 
@@ -1468,13 +1468,13 @@ extern "C"
   struct uv_fs_s
   {
     UV_REQ_FIELDS
-    uv_fs_type fs_type;
+    uv_fs_type fs_type; /*文件操作类型*/
     uv_loop_t *loop;
-    uv_fs_cb cb;
-    ssize_t result;
-    void *ptr;
-    const char *path;
-    uv_stat_t statbuf; /* Stores the result of uv_fs_stat() and uv_fs_fstat(). */
+    uv_fs_cb cb; /*文件操作完成的回调*/
+    ssize_t result; /*文件操作的返回码*/
+    void *ptr; /*文件操作返回的数据*/
+    const char *path; /*文件操作路径*/
+    uv_stat_t statbuf; /*文件的 stat 信息*//* Stores the result of uv_fs_stat() and uv_fs_fstat(). */
     UV_FS_PRIVATE_FIELDS
   };
 
@@ -1709,7 +1709,7 @@ extern "C"
   {
     UV_HANDLE_FIELDS
     /* private */
-    char *path;
+    char *path; /*监听的文件路径(文件或目录)*/
     UV_FS_EVENT_PRIVATE_FIELDS
   };
 
@@ -1720,7 +1720,7 @@ extern "C"
   {
     UV_HANDLE_FIELDS
     /* Private, don't touch. */
-    void *poll_ctx;
+    void *poll_ctx; /*poll_ctx 指向一个 poll_ctx 结构体*/
   };
 
   UV_EXTERN int uv_fs_poll_init(uv_loop_t *loop, uv_fs_poll_t *handle);
@@ -1736,8 +1736,8 @@ extern "C"
   struct uv_signal_s
   {
     UV_HANDLE_FIELDS
-    uv_signal_cb signal_cb;
-    int signum;
+    uv_signal_cb signal_cb; /*收到信号时的回调*/
+    int signum;             /*注册的信号*/
     UV_SIGNAL_PRIVATE_FIELDS
   };
 

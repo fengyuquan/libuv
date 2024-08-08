@@ -29,7 +29,7 @@
 
 struct uv__work
 {
-  void (*work)(struct uv__work *w);
+  void (*work)(struct uv__work *w); /*work 和 done 函数是 work_cb 和after_work_cb 的 wrapper*/
   void (*done)(struct uv__work *w, int status);
   struct uv_loop_s *loop;
   struct uv__queue wq;
