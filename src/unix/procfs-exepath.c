@@ -25,7 +25,8 @@
 #include <stddef.h>
 #include <unistd.h>
 
-int uv_exepath(char* buffer, size_t* size) {
+int uv_exepath(char *buffer, size_t *size)
+{
   ssize_t n;
 
   if (buffer == NULL || size == NULL || *size == 0)

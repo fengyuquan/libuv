@@ -25,15 +25,15 @@
 #include <FindDirectory.h> /* find_path() */
 #include <OS.h>
 
-
-void uv_loadavg(double avg[3]) {
+void uv_loadavg(double avg[3])
+{
   avg[0] = 0;
   avg[1] = 0;
   avg[2] = 0;
 }
 
-
-int uv_exepath(char* buffer, size_t* size) {
+int uv_exepath(char *buffer, size_t *size)
+{
   char abspath[B_PATH_NAME_LENGTH];
   status_t status;
   ssize_t abspath_len;
@@ -54,8 +54,8 @@ int uv_exepath(char* buffer, size_t* size) {
   return 0;
 }
 
-
-uint64_t uv_get_free_memory(void) {
+uint64_t uv_get_free_memory(void)
+{
   status_t status;
   system_info sinfo;
 
@@ -66,8 +66,8 @@ uint64_t uv_get_free_memory(void) {
   return (sinfo.max_pages - sinfo.used_pages) * B_PAGE_SIZE;
 }
 
-
-uint64_t uv_get_total_memory(void) {
+uint64_t uv_get_total_memory(void)
+{
   status_t status;
   system_info sinfo;
 
@@ -78,18 +78,18 @@ uint64_t uv_get_total_memory(void) {
   return sinfo.max_pages * B_PAGE_SIZE;
 }
 
-
-uint64_t uv_get_constrained_memory(void) {
-  return 0;  /* Memory constraints are unknown. */
+uint64_t uv_get_constrained_memory(void)
+{
+  return 0; /* Memory constraints are unknown. */
 }
 
-
-uint64_t uv_get_available_memory(void) {
+uint64_t uv_get_available_memory(void)
+{
   return uv_get_free_memory();
 }
 
-
-int uv_resident_set_memory(size_t* rss) {
+int uv_resident_set_memory(size_t *rss)
+{
   area_info area;
   ssize_t cookie;
   status_t status;
@@ -107,22 +107,22 @@ int uv_resident_set_memory(size_t* rss) {
   return 0;
 }
 
-
-int uv_uptime(double* uptime) {
+int uv_uptime(double *uptime)
+{
   /* system_time() returns time since booting in microseconds */
   *uptime = (double)system_time() / 1000000;
   return 0;
 }
 
-
-int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
-  cpu_topology_node_info* topology_infos;
+int uv_cpu_info(uv_cpu_info_t **cpu_infos, int *count)
+{
+  cpu_topology_node_info *topology_infos;
   int i;
   status_t status;
   system_info system;
   uint32_t topology_count;
   uint64_t cpuspeed;
-  uv_cpu_info_t* cpu_info;
+  uv_cpu_info_t *cpu_info;
 
   if (cpu_infos == NULL || count == NULL)
     return UV_EINVAL;
@@ -136,14 +136,17 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     return UV_ENOMEM;
 
   status = get_cpu_topology_info(topology_infos, &topology_count);
-  if (status != B_OK) {
+  if (status != B_OK)
+  {
     uv__free(topology_infos);
     return UV__ERR(status);
   }
 
   cpuspeed = 0;
-  for (i = 0; i < (int)topology_count; i++) {
-    if (topology_infos[i].type == B_TOPOLOGY_CORE) {
+  for (i = 0; i < (int)topology_count; i++)
+  {
+    if (topology_infos[i].type == B_TOPOLOGY_CORE)
+    {
       cpuspeed = topology_infos[i].data.core.default_frequency;
       break;
     }
@@ -161,7 +164,8 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   /* CPU time and model are not exposed by Haiku. */
   cpu_info = *cpu_infos;
-  for (i = 0; i < (int)system.cpu_count; i++) {
+  for (i = 0; i < (int)system.cpu_count; i++)
+  {
     cpu_info->model = uv__strdup("unknown");
     cpu_info->speed = (int)(cpuspeed / 1000000);
     cpu_info++;

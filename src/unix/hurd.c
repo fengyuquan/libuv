@@ -36,7 +36,8 @@
 #include <string.h>
 #include <limits.h>
 
-int uv_exepath(char* buffer, size_t* size) {
+int uv_exepath(char *buffer, size_t *size)
+{
   kern_return_t err;
   /* XXX in current Hurd, strings are char arrays of 1024 elements */
   string_t exepath;
@@ -45,7 +46,8 @@ int uv_exepath(char* buffer, size_t* size) {
   if (buffer == NULL || size == NULL || *size == 0)
     return UV_EINVAL;
 
-  if (*size - 1 > 0) {
+  if (*size - 1 > 0)
+  {
     /* XXX limited length of buffer in current Hurd, this API will probably
      * evolve in the future */
     err = proc_get_exe(getproc(), getpid(), exepath);
@@ -57,19 +59,20 @@ int uv_exepath(char* buffer, size_t* size) {
   copied = uv__strscpy(buffer, exepath, *size);
 
   /* do not return error on UV_E2BIG failure */
-  *size = copied < 0 ? strlen(buffer) : (size_t) copied;
+  *size = copied < 0 ? strlen(buffer) : (size_t)copied;
 
   return 0;
 }
 
-int uv_resident_set_memory(size_t* rss) {
+int uv_resident_set_memory(size_t *rss)
+{
   kern_return_t err;
   struct task_basic_info bi;
   mach_msg_type_number_t count;
 
   count = TASK_BASIC_INFO_COUNT;
   err = task_info(mach_task_self(), TASK_BASIC_INFO,
-		  (task_info_t) &bi, &count);
+                  (task_info_t)&bi, &count);
 
   if (err)
     return UV__ERR(err);
@@ -79,26 +82,27 @@ int uv_resident_set_memory(size_t* rss) {
   return 0;
 }
 
-uint64_t uv_get_free_memory(void) {
+uint64_t uv_get_free_memory(void)
+{
   kern_return_t err;
   struct vm_statistics vmstats;
-  
+
   err = vm_statistics(mach_task_self(), &vmstats);
 
   if (err)
     return 0;
-  
+
   return vmstats.free_count * vm_page_size;
 }
 
-
-uint64_t uv_get_total_memory(void) {
+uint64_t uv_get_total_memory(void)
+{
   kern_return_t err;
   host_basic_info_data_t hbi;
   mach_msg_type_number_t cnt;
-  
+
   cnt = HOST_BASIC_INFO_COUNT;
-  err = host_info(mach_host_self(), HOST_BASIC_INFO, (host_info_t) &hbi, &cnt); 
+  err = host_info(mach_host_self(), HOST_BASIC_INFO, (host_info_t)&hbi, &cnt);
 
   if (err)
     return 0;
@@ -106,8 +110,8 @@ uint64_t uv_get_total_memory(void) {
   return hbi.memory_size;
 }
 
-
-int uv_uptime(double* uptime) {
+int uv_uptime(double *uptime)
+{
   char buf[128];
 
   /* Try /proc/uptime first */
@@ -120,8 +124,9 @@ int uv_uptime(double* uptime) {
   return UV__ERR(EIO);
 }
 
-void uv_loadavg(double avg[3]) {
-  char buf[128];  /* Large enough to hold all of /proc/loadavg. */
+void uv_loadavg(double avg[3])
+{
+  char buf[128]; /* Large enough to hold all of /proc/loadavg. */
 
   if (0 == uv__slurp("/proc/loadavg", buf, sizeof(buf)))
     if (3 == sscanf(buf, "%lf %lf %lf", &avg[0], &avg[1], &avg[2]))
@@ -130,24 +135,26 @@ void uv_loadavg(double avg[3]) {
   /* Reimplement here code from procfs to calculate loadavg if not mounted? */
 }
 
-
-int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
+int uv_cpu_info(uv_cpu_info_t **cpu_infos, int *count)
+{
   kern_return_t err;
   host_basic_info_data_t hbi;
   mach_msg_type_number_t cnt;
-  
+
   /* Get count of cpus  */
   cnt = HOST_BASIC_INFO_COUNT;
-  err = host_info(mach_host_self(), HOST_BASIC_INFO, (host_info_t) &hbi, &cnt); 
+  err = host_info(mach_host_self(), HOST_BASIC_INFO, (host_info_t)&hbi, &cnt);
 
-  if (err) {
+  if (err)
+  {
     err = UV__ERR(err);
     goto abort;
   }
 
   /* XXX not implemented on the Hurd */
   *cpu_infos = uv__calloc(hbi.avail_cpus, sizeof(**cpu_infos));
-  if (*cpu_infos == NULL) {
+  if (*cpu_infos == NULL)
+  {
     err = UV_ENOMEM;
     goto abort;
   }
@@ -155,18 +162,19 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   *count = hbi.avail_cpus;
 
   return 0;
-  
- abort:
+
+abort:
   *cpu_infos = NULL;
   *count = 0;
   return err;
 }
 
-uint64_t uv_get_constrained_memory(void) {
-  return 0;  /* Memory constraints are unknown. */
+uint64_t uv_get_constrained_memory(void)
+{
+  return 0; /* Memory constraints are unknown. */
 }
 
-
-uint64_t uv_get_available_memory(void) {
+uint64_t uv_get_available_memory(void)
+{
   return uv_get_free_memory();
 }

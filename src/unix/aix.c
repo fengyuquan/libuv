@@ -62,23 +62,24 @@
 #include <strings.h>
 #include <sys/vnode.h>
 
-#define RDWR_BUF_SIZE   4096
-#define EQ(a,b)         (strcmp(a,b) == 0)
+#define RDWR_BUF_SIZE 4096
+#define EQ(a, b) (strcmp(a, b) == 0)
 
-char* original_exepath = NULL;
+char *original_exepath = NULL;
 uv_mutex_t process_title_mutex;
 uv_once_t process_title_mutex_once = UV_ONCE_INIT;
-static void* args_mem = NULL;
-static char** process_argv = NULL;
+static void *args_mem = NULL;
+static char **process_argv = NULL;
 static int process_argc = 0;
-static char* process_title_ptr = NULL;
+static char *process_title_ptr = NULL;
 
-void init_process_title_mutex_once(void) {
+void init_process_title_mutex_once(void)
+{
   uv_mutex_init(&process_title_mutex);
 }
 
-
-int uv__platform_loop_init(uv_loop_t* loop) {
+int uv__platform_loop_init(uv_loop_t *loop)
+{
   loop->fs_fd = -1;
 
   /* Passing maxfd of -1 should mean the limit is determined
@@ -91,32 +92,34 @@ int uv__platform_loop_init(uv_loop_t* loop) {
   return 0;
 }
 
-
-void uv__platform_loop_delete(uv_loop_t* loop) {
-  if (loop->fs_fd != -1) {
+void uv__platform_loop_delete(uv_loop_t *loop)
+{
+  if (loop->fs_fd != -1)
+  {
     uv__close(loop->fs_fd);
     loop->fs_fd = -1;
   }
 
-  if (loop->backend_fd != -1) {
+  if (loop->backend_fd != -1)
+  {
     pollset_destroy(loop->backend_fd);
     loop->backend_fd = -1;
   }
 }
 
-
-int uv__io_fork(uv_loop_t* loop) {
+int uv__io_fork(uv_loop_t *loop)
+{
   uv__platform_loop_delete(loop);
 
   return uv__platform_loop_init(loop);
 }
 
-
-int uv__io_check_fd(uv_loop_t* loop, int fd) {
+int uv__io_check_fd(uv_loop_t *loop, int fd)
+{
   struct poll_ctl pc;
 
   pc.events = POLLIN;
-  pc.cmd = PS_MOD;  /* Equivalent to PS_ADD if the fd is not in the pollset. */
+  pc.cmd = PS_MOD; /* Equivalent to PS_ADD if the fd is not in the pollset. */
   pc.fd = fd;
 
   if (pollset_ctl(loop->backend_fd, &pc, 1))
@@ -129,15 +132,15 @@ int uv__io_check_fd(uv_loop_t* loop, int fd) {
   return 0;
 }
 
-
-void uv__io_poll(uv_loop_t* loop, int timeout) {
-  uv__loop_internal_fields_t* lfields;
+void uv__io_poll(uv_loop_t *loop, int timeout)
+{
+  uv__loop_internal_fields_t *lfields;
   struct pollfd events[1024];
   struct pollfd pqry;
-  struct pollfd* pe;
+  struct pollfd *pe;
   struct poll_ctl pc;
-  struct uv__queue* q;
-  uv__io_t* w;
+  struct uv__queue *q;
+  uv__io_t *w;
   uint64_t base;
   uint64_t diff;
   int have_signals;
@@ -150,14 +153,16 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int user_timeout;
   int reset_timeout;
 
-  if (loop->nfds == 0) {
+  if (loop->nfds == 0)
+  {
     assert(uv__queue_empty(&loop->watcher_queue));
     return;
   }
 
   lfields = uv__get_internal_fields(loop);
 
-  while (!uv__queue_empty(&loop->watcher_queue)) {
+  while (!uv__queue_empty(&loop->watcher_queue))
+  {
     q = uv__queue_head(&loop->watcher_queue);
     uv__queue_remove(q);
     uv__queue_init(q);
@@ -165,23 +170,27 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     w = uv__queue_data(q, uv__io_t, watcher_queue);
     assert(w->pevents != 0);
     assert(w->fd >= 0);
-    assert(w->fd < (int) loop->nwatchers);
+    assert(w->fd < (int)loop->nwatchers);
 
     pc.events = w->pevents;
     pc.fd = w->fd;
 
     add_failed = 0;
-    if (w->events == 0) {
+    if (w->events == 0)
+    {
       pc.cmd = PS_ADD;
-      if (pollset_ctl(loop->backend_fd, &pc, 1)) {
-        if (errno != EINVAL) {
+      if (pollset_ctl(loop->backend_fd, &pc, 1))
+      {
+        if (errno != EINVAL)
+        {
           assert(0 && "Failed to add file descriptor (pc.fd) to pollset");
           abort();
         }
         /* Check if the fd is already in the pollset */
         pqry.fd = pc.fd;
         rc = pollset_query(loop->backend_fd, &pqry);
-        switch (rc) {
+        switch (rc)
+        {
         case -1:
           assert(0 && "Failed to query pollset for file descriptor");
           abort();
@@ -194,7 +203,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         add_failed = 1;
       }
     }
-    if (w->events != 0 || add_failed) {
+    if (w->events != 0 || add_failed)
+    {
       /* Modify, potentially removing events -- need to delete then add.
        * Could maybe mod if we knew for sure no events are removed, but
        * content of w->events is handled above as not reliable (falls back)
@@ -202,12 +212,14 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
        * compared to a PS_DELETE to be worth optimizing. Alternatively, could
        * lazily remove events, squelching them in the mean time. */
       pc.cmd = PS_DELETE;
-      if (pollset_ctl(loop->backend_fd, &pc, 1)) {
+      if (pollset_ctl(loop->backend_fd, &pc, 1))
+      {
         assert(0 && "Failed to delete file descriptor (pc.fd) from pollset");
         abort();
       }
       pc.cmd = PS_ADD;
-      if (pollset_ctl(loop->backend_fd, &pc, 1)) {
+      if (pollset_ctl(loop->backend_fd, &pc, 1))
+      {
         assert(0 && "Failed to add file descriptor (pc.fd) to pollset");
         abort();
       }
@@ -220,15 +232,19 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   base = loop->time;
   count = 48; /* Benchmarks suggest this gives the best throughput. */
 
-  if (lfields->flags & UV_METRICS_IDLE_TIME) {
+  if (lfields->flags & UV_METRICS_IDLE_TIME)
+  {
     reset_timeout = 1;
     user_timeout = timeout;
     timeout = 0;
-  } else {
+  }
+  else
+  {
     reset_timeout = 0;
   }
 
-  for (;;) {
+  for (;;)
+  {
     /* Only need to set the provider_entry_time if timeout != 0. The function
      * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
      */
@@ -252,8 +268,10 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
      */
     SAVE_ERRNO(uv__update_time(loop));
 
-    if (nfds == 0) {
-      if (reset_timeout != 0) {
+    if (nfds == 0)
+    {
+      if (reset_timeout != 0)
+      {
         timeout = user_timeout;
         reset_timeout = 0;
         if (timeout == -1)
@@ -266,12 +284,15 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       return;
     }
 
-    if (nfds == -1) {
-      if (errno != EINTR) {
+    if (nfds == -1)
+    {
+      if (errno != EINTR)
+      {
         abort();
       }
 
-      if (reset_timeout != 0) {
+      if (reset_timeout != 0)
+      {
         timeout = user_timeout;
         reset_timeout = 0;
       }
@@ -290,10 +311,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     nevents = 0;
 
     assert(loop->watchers != NULL);
-    loop->watchers[loop->nwatchers] = (void*) events;
-    loop->watchers[loop->nwatchers + 1] = (void*) (uintptr_t) nfds;
+    loop->watchers[loop->nwatchers] = (void *)events;
+    loop->watchers[loop->nwatchers + 1] = (void *)(uintptr_t)nfds;
 
-    for (i = 0; i < nfds; i++) {
+    for (i = 0; i < nfds; i++)
+    {
       pe = events + i;
       pc.cmd = PS_DELETE;
       pc.fd = pe->fd;
@@ -303,11 +325,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         continue;
 
       assert(pc.fd >= 0);
-      assert((unsigned) pc.fd < loop->nwatchers);
+      assert((unsigned)pc.fd < loop->nwatchers);
 
       w = loop->watchers[pc.fd];
 
-      if (w == NULL) {
+      if (w == NULL)
+      {
         /* File descriptor that we've stopped watching, disarm it.
          *
          * Ignore all errors because we may be racing with another thread
@@ -320,9 +343,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       /* Run signal watchers last.  This also affects child process watchers
        * because those are implemented in terms of signal watchers.
        */
-      if (w == &loop->signal_io_watcher) {
+      if (w == &loop->signal_io_watcher)
+      {
         have_signals = 1;
-      } else {
+      }
+      else
+      {
         uv__metrics_update_idle_time(loop);
         w->cb(loop, w, pe->revents);
       }
@@ -331,13 +357,15 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     }
 
     uv__metrics_inc_events(loop, nevents);
-    if (reset_timeout != 0) {
+    if (reset_timeout != 0)
+    {
       timeout = user_timeout;
       reset_timeout = 0;
       uv__metrics_inc_events_waiting(loop, nevents);
     }
 
-    if (have_signals != 0) {
+    if (have_signals != 0)
+    {
       uv__metrics_update_idle_time(loop);
       loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
     }
@@ -346,10 +374,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     loop->watchers[loop->nwatchers + 1] = NULL;
 
     if (have_signals != 0)
-      return;  /* Event loop should cycle now so don't poll again. */
+      return; /* Event loop should cycle now so don't poll again. */
 
-    if (nevents != 0) {
-      if (nfds == ARRAY_SIZE(events) && --count != 0) {
+    if (nevents != 0)
+    {
+      if (nfds == ARRAY_SIZE(events) && --count != 0)
+      {
         /* Poll for more events but don't block this time. */
         timeout = 0;
         continue;
@@ -363,53 +393,58 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     if (timeout == -1)
       continue;
 
-update_timeout:
+  update_timeout:
     assert(timeout > 0);
 
     diff = loop->time - base;
-    if (diff >= (uint64_t) timeout)
+    if (diff >= (uint64_t)timeout)
       return;
 
     timeout -= diff;
   }
 }
 
-
-uint64_t uv_get_free_memory(void) {
+uint64_t uv_get_free_memory(void)
+{
   perfstat_memory_total_t mem_total;
   int result = perfstat_memory_total(NULL, &mem_total, sizeof(mem_total), 1);
-  if (result == -1) {
+  if (result == -1)
+  {
     return 0;
   }
   return mem_total.real_free * 4096;
 }
 
-
-uint64_t uv_get_total_memory(void) {
+uint64_t uv_get_total_memory(void)
+{
   perfstat_memory_total_t mem_total;
   int result = perfstat_memory_total(NULL, &mem_total, sizeof(mem_total), 1);
-  if (result == -1) {
+  if (result == -1)
+  {
     return 0;
   }
   return mem_total.real_total * 4096;
 }
 
-
-uint64_t uv_get_constrained_memory(void) {
-  return 0;  /* Memory constraints are unknown. */
+uint64_t uv_get_constrained_memory(void)
+{
+  return 0; /* Memory constraints are unknown. */
 }
 
-
-uint64_t uv_get_available_memory(void) {
+uint64_t uv_get_available_memory(void)
+{
   return uv_get_free_memory();
 }
 
-
-void uv_loadavg(double avg[3]) {
+void uv_loadavg(double avg[3])
+{
   perfstat_cpu_total_t ps_total;
   int result = perfstat_cpu_total(NULL, &ps_total, sizeof(ps_total), 1);
-  if (result == -1) {
-    avg[0] = 0.; avg[1] = 0.; avg[2] = 0.;
+  if (result == -1)
+  {
+    avg[0] = 0.;
+    avg[1] = 0.;
+    avg[2] = 0.;
     return;
   }
   avg[0] = ps_total.loadavg[0] / (double)(1 << SBITS);
@@ -417,19 +452,18 @@ void uv_loadavg(double avg[3]) {
   avg[2] = ps_total.loadavg[2] / (double)(1 << SBITS);
 }
 
-
 #ifdef HAVE_SYS_AHAFS_EVPRODS_H
-static char* uv__rawname(const char* cp, char (*dst)[FILENAME_MAX+1]) {
-  char* dp;
+static char *uv__rawname(const char *cp, char (*dst)[FILENAME_MAX + 1])
+{
+  char *dp;
 
   dp = rindex(cp, '/');
   if (dp == 0)
     return 0;
 
-  snprintf(*dst, sizeof(*dst), "%.*s/r%s", (int) (dp - cp), cp, dp + 1);
+  snprintf(*dst, sizeof(*dst), "%.*s/r%s", (int)(dp - cp), cp, dp + 1);
   return *dst;
 }
-
 
 /*
  * Determine whether given pathname is a directory
@@ -438,11 +472,12 @@ static char* uv__rawname(const char* cp, char (*dst)[FILENAME_MAX+1]) {
  * Note: Opportunity here for more detailed error information but
  *       that requires changing callers of this function as well
  */
-static int uv__path_is_a_directory(char* filename) {
+static int uv__path_is_a_directory(char *filename)
+{
   struct stat statbuf;
 
   if (uv__stat(filename, &statbuf) < 0)
-    return -1;  /* failed: not a directory, assume it is a file */
+    return -1; /* failed: not a directory, assume it is a file */
 
   if (statbuf.st_type == VDIR)
     return 0;
@@ -450,17 +485,17 @@ static int uv__path_is_a_directory(char* filename) {
   return -1;
 }
 
-
 /*
  * Check whether AHAFS is mounted.
  * Returns 0 if AHAFS is mounted, or an error code < 0 on failure
  */
-static int uv__is_ahafs_mounted(void){
-  char rawbuf[FILENAME_MAX+1];
+static int uv__is_ahafs_mounted(void)
+{
+  char rawbuf[FILENAME_MAX + 1];
   int rv, i = 2;
   struct vmount *p;
   int size_multiplier = 10;
-  size_t siz = sizeof(struct vmount)*size_multiplier;
+  size_t siz = sizeof(struct vmount) * size_multiplier;
   struct vmount *vmt;
   const char *dev = "/aha";
   char *obj, *stub;
@@ -470,31 +505,34 @@ static int uv__is_ahafs_mounted(void){
     return UV__ERR(errno);
 
   /* Retrieve all mounted filesystems */
-  rv = mntctl(MCTL_QUERY, siz, (char*)p);
+  rv = mntctl(MCTL_QUERY, siz, (char *)p);
   if (rv < 0)
     return UV__ERR(errno);
-  if (rv == 0) {
+  if (rv == 0)
+  {
     /* buffer was not large enough, reallocate to correct size */
-    siz = *(int*)p;
+    siz = *(int *)p;
     uv__free(p);
     p = uv__malloc(siz);
     if (p == NULL)
       return UV__ERR(errno);
-    rv = mntctl(MCTL_QUERY, siz, (char*)p);
+    rv = mntctl(MCTL_QUERY, siz, (char *)p);
     if (rv < 0)
       return UV__ERR(errno);
   }
 
   /* Look for dev in filesystems mount info */
-  for(vmt = p, i = 0; i < rv; i++) {
-    obj = vmt2dataptr(vmt, VMT_OBJECT);     /* device */
-    stub = vmt2dataptr(vmt, VMT_STUB);      /* mount point */
+  for (vmt = p, i = 0; i < rv; i++)
+  {
+    obj = vmt2dataptr(vmt, VMT_OBJECT); /* device */
+    stub = vmt2dataptr(vmt, VMT_STUB);  /* mount point */
 
-    if (EQ(obj, dev) || EQ(uv__rawname(obj, &rawbuf), dev) || EQ(stub, dev)) {
-      uv__free(p);  /* Found a match */
+    if (EQ(obj, dev) || EQ(uv__rawname(obj, &rawbuf), dev) || EQ(stub, dev))
+    {
+      uv__free(p); /* Found a match */
       return 0;
     }
-    vmt = (struct vmount *) ((char *) vmt + vmt->vmt_length);
+    vmt = (struct vmount *)((char *)vmt + vmt->vmt_length);
   }
 
   /* /aha is required for monitoring filesystem changes */
@@ -505,7 +543,8 @@ static int uv__is_ahafs_mounted(void){
  * Recursive call to mkdir() to create intermediate folders, if any
  * Returns code from mkdir call
  */
-static int uv__makedir_p(const char *dir) {
+static int uv__makedir_p(const char *dir)
+{
   char tmp[256];
   char *p = NULL;
   size_t len;
@@ -516,8 +555,10 @@ static int uv__makedir_p(const char *dir) {
   len = strlen(tmp);
   if (tmp[len - 1] == '/')
     tmp[len - 1] = 0;
-  for (p = tmp + 1; *p; p++) {
-    if (*p == '/') {
+  for (p = tmp + 1; *p; p++)
+  {
+    if (*p == '/')
+    {
       *p = 0;
       err = mkdir(tmp, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
       if (err != 0 && errno != EEXIST)
@@ -533,7 +574,8 @@ static int uv__makedir_p(const char *dir) {
  * file system for monitoring the object specified.
  * Returns code from mkdir call
  */
-static int uv__make_subdirs_p(const char *filename) {
+static int uv__make_subdirs_p(const char *filename)
+{
   char cmd[2048];
   char *p;
   int rc = 0;
@@ -544,36 +586,40 @@ static int uv__make_subdirs_p(const char *filename) {
   if (p == NULL)
     return 0;
 
-  if (uv__path_is_a_directory((char*)filename) == 0) {
+  if (uv__path_is_a_directory((char *)filename) == 0)
+  {
     sprintf(cmd, "/aha/fs/modDir.monFactory");
-  } else {
+  }
+  else
+  {
     sprintf(cmd, "/aha/fs/modFile.monFactory");
   }
 
   strncat(cmd, filename, (p - filename));
   rc = uv__makedir_p(cmd);
 
-  if (rc == -1 && errno != EEXIST){
+  if (rc == -1 && errno != EEXIST)
+  {
     return UV__ERR(errno);
   }
 
   return rc;
 }
 
-
 /*
  * Checks if /aha is mounted, then proceeds to set up the monitoring
  * objects for the specified file.
  * Returns 0 on success, or an error code < 0 on failure
  */
-static int uv__setup_ahafs(const char* filename, int *fd) {
+static int uv__setup_ahafs(const char *filename, int *fd)
+{
   int rc = 0;
   char mon_file_write_string[RDWR_BUF_SIZE];
   char mon_file[PATH_MAX];
   int file_is_directory = 0; /* -1 == NO, 0 == YES  */
 
   /* Create monitor file name for object */
-  file_is_directory = uv__path_is_a_directory((char*)filename);
+  file_is_directory = uv__path_is_a_directory((char *)filename);
 
   if (file_is_directory == 0)
     sprintf(mon_file, "/aha/fs/modDir.monFactory");
@@ -591,10 +637,11 @@ static int uv__setup_ahafs(const char* filename, int *fd) {
   strcat(mon_file, filename);
   strcat(mon_file, ".mon");
 
-  *fd = 0; errno = 0;
+  *fd = 0;
+  errno = 0;
 
   /* Open the monitor file, creating it if necessary */
-  *fd = open(mon_file, O_CREAT|O_RDWR);
+  *fd = open(mon_file, O_CREAT | O_RDWR);
   if (*fd < 0)
     return UV__ERR(errno);
 
@@ -615,7 +662,7 @@ static int uv__setup_ahafs(const char* filename, int *fd) {
   else
     sprintf(mon_file_write_string, "CHANGED=YES;WAIT_TYPE=WAIT_IN_SELECT;INFO_LVL=1");
 
-  rc = write(*fd, mon_file_write_string, strlen(mon_file_write_string)+1);
+  rc = write(*fd, mon_file_write_string, strlen(mon_file_write_string) + 1);
   if (rc < 0 && errno != EBUSY)
     return UV__ERR(errno);
 
@@ -627,10 +674,12 @@ static int uv__setup_ahafs(const char* filename, int *fd) {
  * Walks the buffer pointed to by p and attempts to skip n lines.
  * Returns the total number of lines skipped
  */
-static int uv__skip_lines(char **p, int n) {
+static int uv__skip_lines(char **p, int n)
+{
   int lines = 0;
 
-  while(n > 0) {
+  while (n > 0)
+  {
     *p = strchr(*p, '\n');
     if (!p)
       return lines;
@@ -642,7 +691,6 @@ static int uv__skip_lines(char **p, int n) {
   return lines;
 }
 
-
 /*
  * Parse the event occurrence data to figure out what event just occurred
  * and take proper action.
@@ -651,22 +699,25 @@ static int uv__skip_lines(char **p, int n) {
  * Returns 0 on success, -1 if unrecoverable error in parsing
  *
  */
-static int uv__parse_data(char *buf, int *events, uv_fs_event_t* handle) {
-  int    evp_rc, i;
-  char   *p;
-  char   filename[PATH_MAX]; /* To be used when handling directories */
+static int uv__parse_data(char *buf, int *events, uv_fs_event_t *handle)
+{
+  int evp_rc, i;
+  char *p;
+  char filename[PATH_MAX]; /* To be used when handling directories */
 
   p = buf;
   *events = 0;
 
   /* Clean the filename buffer*/
-  for(i = 0; i < PATH_MAX; i++) {
+  for (i = 0; i < PATH_MAX; i++)
+  {
     filename[i] = 0;
   }
   i = 0;
 
   /* Check for BUF_WRAP */
-  if (strncmp(buf, "BUF_WRAP", strlen("BUF_WRAP")) == 0) {
+  if (strncmp(buf, "BUF_WRAP", strlen("BUF_WRAP")) == 0)
+  {
     assert(0 && "Buffer wrap detected, Some event occurrences lost!");
     return 0;
   }
@@ -681,13 +732,18 @@ static int uv__parse_data(char *buf, int *events, uv_fs_event_t* handle) {
   if (uv__skip_lines(&p, 9) != 9)
     return -1;
 
-  if (sscanf(p, "RC_FROM_EVPROD=%d\nEND_EVENT_DATA", &evp_rc) == 1) {
-    if (uv__path_is_a_directory(handle->path) == 0) { /* Directory */
-      if (evp_rc == AHAFS_MODDIR_UNMOUNT || evp_rc == AHAFS_MODDIR_REMOVE_SELF) {
+  if (sscanf(p, "RC_FROM_EVPROD=%d\nEND_EVENT_DATA", &evp_rc) == 1)
+  {
+    if (uv__path_is_a_directory(handle->path) == 0)
+    { /* Directory */
+      if (evp_rc == AHAFS_MODDIR_UNMOUNT || evp_rc == AHAFS_MODDIR_REMOVE_SELF)
+      {
         /* The directory is no longer available for monitoring */
         *events = UV_RENAME;
         handle->dir_filename = NULL;
-      } else {
+      }
+      else
+      {
         /* A file was added/removed inside the directory */
         *events = UV_CHANGE;
 
@@ -696,12 +752,16 @@ static int uv__parse_data(char *buf, int *events, uv_fs_event_t* handle) {
           return -1;
 
         /* Scan out the name of the file that triggered the event*/
-        if (sscanf(p, "BEGIN_EVPROD_INFO\n%sEND_EVPROD_INFO", filename) == 1) {
-          handle->dir_filename = uv__strdup((const char*)&filename);
-        } else
-          return -1;
+        if (sscanf(p, "BEGIN_EVPROD_INFO\n%sEND_EVPROD_INFO", filename) == 1)
+        {
+          handle->dir_filename = uv__strdup((const char *)&filename);
         }
-    } else { /* Regular File */
+        else
+          return -1;
+      }
+    }
+    else
+    { /* Regular File */
       if (evp_rc == AHAFS_MODFILE_RENAME)
         *events = UV_RENAME;
       else
@@ -714,12 +774,12 @@ static int uv__parse_data(char *buf, int *events, uv_fs_event_t* handle) {
   return 0;
 }
 
-
 /* This is the internal callback */
-static void uv__ahafs_event(uv_loop_t* loop, uv__io_t* event_watch, unsigned int fflags) {
-  char   result_data[RDWR_BUF_SIZE];
+static void uv__ahafs_event(uv_loop_t *loop, uv__io_t *event_watch, unsigned int fflags)
+{
+  char result_data[RDWR_BUF_SIZE];
   int bytes, rc = 0;
-  uv_fs_event_t* handle;
+  uv_fs_event_t *handle;
   int events = 0;
   char fname[PATH_MAX];
   char *p;
@@ -738,11 +798,11 @@ static void uv__ahafs_event(uv_loop_t* loop, uv__io_t* event_watch, unsigned int
    * produces a second event with no data.
    * Ignore it and return gracefully.
    */
-  if(bytes == 0)
+  if (bytes == 0)
     return;
 
   /* Parse the data */
-  if(bytes > 0)
+  if (bytes > 0)
     rc = uv__parse_data(result_data, &events, handle);
 
   /* Unrecoverable error */
@@ -752,9 +812,12 @@ static void uv__ahafs_event(uv_loop_t* loop, uv__io_t* event_watch, unsigned int
   /* For directory changes, the name of the files that triggered the change
    * are never absolute pathnames
    */
-  if (uv__path_is_a_directory(handle->path) == 0) {
+  if (uv__path_is_a_directory(handle->path) == 0)
+  {
     p = handle->dir_filename;
-  } else {
+  }
+  else
+  {
     p = strrchr(handle->path, '/');
     if (p == NULL)
       p = handle->path;
@@ -769,42 +832,45 @@ static void uv__ahafs_event(uv_loop_t* loop, uv__io_t* event_watch, unsigned int
 }
 #endif
 
-
-int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle) {
+int uv_fs_event_init(uv_loop_t *loop, uv_fs_event_t *handle)
+{
 #ifdef HAVE_SYS_AHAFS_EVPRODS_H
-  uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
+  uv__handle_init(loop, (uv_handle_t *)handle, UV_FS_EVENT);
   return 0;
 #else
   return UV_ENOSYS;
 #endif
 }
 
-
-int uv_fs_event_start(uv_fs_event_t* handle,
+int uv_fs_event_start(uv_fs_event_t *handle,
                       uv_fs_event_cb cb,
-                      const char* filename,
-                      unsigned int flags) {
+                      const char *filename,
+                      unsigned int flags)
+{
 #ifdef HAVE_SYS_AHAFS_EVPRODS_H
-  int  fd, rc, str_offset = 0;
+  int fd, rc, str_offset = 0;
   char cwd[PATH_MAX];
   char absolute_path[PATH_MAX];
   char readlink_cwd[PATH_MAX];
   struct timeval zt;
   fd_set pollfd;
 
-
   /* Figure out whether filename is absolute or not */
-  if (filename[0] == '\0') {
+  if (filename[0] == '\0')
+  {
     /* Missing a pathname */
     return UV_ENOENT;
   }
-  else if (filename[0] == '/') {
+  else if (filename[0] == '/')
+  {
     /* We have absolute pathname */
     /* TODO(bnoordhuis) Check uv__strscpy() return value. */
     uv__strscpy(absolute_path, filename, sizeof(absolute_path));
-  } else {
+  }
+  else
+  {
     /* We have a relative pathname, compose the absolute pathname */
-    snprintf(cwd, sizeof(cwd), "/proc/%lu/cwd", (unsigned long) getpid());
+    snprintf(cwd, sizeof(cwd), "/proc/%lu/cwd", (unsigned long)getpid());
     rc = readlink(cwd, readlink_cwd, sizeof(readlink_cwd) - 1);
     if (rc < 0)
       return rc;
@@ -818,7 +884,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
              filename + str_offset);
   }
 
-  if (uv__is_ahafs_mounted() < 0)  /* /aha checks failed */
+  if (uv__is_ahafs_mounted() < 0) /* /aha checks failed */
     return UV_ENOSYS;
 
   /* Setup ahafs */
@@ -838,7 +904,8 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   /* AHAFS wants someone to poll for it to start mointoring.
    *  so kick-start it so that we don't miss an event in the
    *  eventuality of an event that occurs in the current loop. */
-  do {
+  do
+  {
     memset(&zt, 0, sizeof(zt));
     FD_ZERO(&pollfd);
     FD_SET(fd, &pollfd);
@@ -850,8 +917,8 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 #endif
 }
 
-
-int uv_fs_event_stop(uv_fs_event_t* handle) {
+int uv_fs_event_stop(uv_fs_event_t *handle)
+{
 #ifdef HAVE_SYS_AHAFS_EVPRODS_H
   if (!uv__is_active(handle))
     return 0;
@@ -859,7 +926,8 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
   uv__io_close(handle->loop, &handle->event_watcher);
   uv__handle_stop(handle);
 
-  if (uv__path_is_a_directory(handle->path) == 0) {
+  if (uv__path_is_a_directory(handle->path) == 0)
+  {
     uv__free(handle->dir_filename);
     handle->dir_filename = NULL;
   }
@@ -875,8 +943,8 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
 #endif
 }
 
-
-void uv__fs_event_close(uv_fs_event_t* handle) {
+void uv__fs_event_close(uv_fs_event_t *handle)
+{
 #ifdef HAVE_SYS_AHAFS_EVPRODS_H
   uv_fs_event_stop(handle);
 #else
@@ -884,12 +952,12 @@ void uv__fs_event_close(uv_fs_event_t* handle) {
 #endif
 }
 
-
-char** uv_setup_args(int argc, char** argv) {
+char **uv_setup_args(int argc, char **argv)
+{
   char exepath[UV__PATH_MAX];
-  char** new_argv;
+  char **new_argv;
   size_t size;
-  char* s;
+  char *s;
   int i;
 
   if (argc <= 0)
@@ -904,9 +972,10 @@ char** uv_setup_args(int argc, char** argv) {
 
   /* Use argv[0] to determine value for uv_exepath(). */
   size = sizeof(exepath);
-  if (uv__search_path(argv[0], exepath, &size) == 0) {
+  if (uv__search_path(argv[0], exepath, &size) == 0)
+  {
     uv_once(&process_title_mutex_once, init_process_title_mutex_once);
-    uv_mutex_lock(&process_title_mutex); 
+    uv_mutex_lock(&process_title_mutex);
     original_exepath = uv__strdup(exepath);
     uv_mutex_unlock(&process_title_mutex);
   }
@@ -917,7 +986,7 @@ char** uv_setup_args(int argc, char** argv) {
     size += strlen(argv[i]) + 1;
 
   /* Add space for the argv pointers. */
-  size += (argc + 1) * sizeof(char*);
+  size += (argc + 1) * sizeof(char *);
 
   new_argv = uv__malloc(size);
   if (new_argv == NULL)
@@ -925,8 +994,9 @@ char** uv_setup_args(int argc, char** argv) {
   args_mem = new_argv;
 
   /* Copy over the strings and set up the pointer table. */
-  s = (char*) &new_argv[argc + 1];
-  for (i = 0; i < argc; i++) {
+  s = (char *)&new_argv[argc + 1];
+  for (i = 0; i < argc; i++)
+  {
     size = strlen(argv[i]) + 1;
     memcpy(s, argv[i], size);
     new_argv[i] = s;
@@ -937,9 +1007,9 @@ char** uv_setup_args(int argc, char** argv) {
   return new_argv;
 }
 
-
-int uv_set_process_title(const char* title) {
-  char* new_title;
+int uv_set_process_title(const char *title)
+{
+  char *new_title;
 
   /* If uv_setup_args wasn't called or failed, we can't continue. */
   if (process_argv == NULL || args_mem == NULL)
@@ -965,15 +1035,15 @@ int uv_set_process_title(const char* title) {
 
   process_argv[0] = process_title_ptr;
   if (process_argc > 1)
-     process_argv[1] = NULL;
+    process_argv[1] = NULL;
 
   uv_mutex_unlock(&process_title_mutex);
 
   return 0;
 }
 
-
-int uv_get_process_title(char* buffer, size_t size) {
+int uv_get_process_title(char *buffer, size_t size)
+{
   size_t len;
   if (buffer == NULL || size == 0)
     return UV_EINVAL;
@@ -986,7 +1056,8 @@ int uv_get_process_title(char* buffer, size_t size) {
   uv_mutex_lock(&process_title_mutex);
 
   len = strlen(process_argv[0]);
-  if (size <= len) {
+  if (size <= len)
+  {
     uv_mutex_unlock(&process_title_mutex);
     return UV_ENOBUFS;
   }
@@ -999,20 +1070,20 @@ int uv_get_process_title(char* buffer, size_t size) {
   return 0;
 }
 
-
-void uv__process_title_cleanup(void) {
-  uv__free(args_mem);  /* Keep valgrind happy. */
+void uv__process_title_cleanup(void)
+{
+  uv__free(args_mem); /* Keep valgrind happy. */
   args_mem = NULL;
 }
 
-
-int uv_resident_set_memory(size_t* rss) {
+int uv_resident_set_memory(size_t *rss)
+{
   char pp[64];
   psinfo_t psinfo;
   int err;
   int fd;
 
-  snprintf(pp, sizeof(pp), "/proc/%lu/psinfo", (unsigned long) getpid());
+  snprintf(pp, sizeof(pp), "/proc/%lu/psinfo", (unsigned long)getpid());
 
   fd = open(pp, O_RDONLY);
   if (fd == -1)
@@ -1020,7 +1091,8 @@ int uv_resident_set_memory(size_t* rss) {
 
   /* FIXME(bnoordhuis) Handle EINTR. */
   err = UV_EINVAL;
-  if (read(fd, &psinfo, sizeof(psinfo)) == sizeof(psinfo)) {
+  if (read(fd, &psinfo, sizeof(psinfo)) == sizeof(psinfo))
+  {
     *rss = (size_t)psinfo.pr_rssize * 1024;
     err = 0;
   }
@@ -1029,8 +1101,8 @@ int uv_resident_set_memory(size_t* rss) {
   return err;
 }
 
-
-int uv_uptime(double* uptime) {
+int uv_uptime(double *uptime)
+{
   struct utmp *utmp_buf;
   size_t entries = 0;
   time_t boot_time;
@@ -1040,7 +1112,8 @@ int uv_uptime(double* uptime) {
 
   setutent();
 
-  while ((utmp_buf = getutent()) != NULL) {
+  while ((utmp_buf = getutent()) != NULL)
+  {
     if (utmp_buf->ut_user[0] && utmp_buf->ut_type == USER_PROCESS)
       ++entries;
     if (utmp_buf->ut_type == BOOT_TIME)
@@ -1056,39 +1129,44 @@ int uv_uptime(double* uptime) {
   return 0;
 }
 
-
-int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
-  uv_cpu_info_t* cpu_info;
+int uv_cpu_info(uv_cpu_info_t **cpu_infos, int *count)
+{
+  uv_cpu_info_t *cpu_info;
   perfstat_cpu_total_t ps_total;
-  perfstat_cpu_t* ps_cpus;
+  perfstat_cpu_t *ps_cpus;
   perfstat_id_t cpu_id;
   int result, ncpus, idx = 0;
 
   result = perfstat_cpu_total(NULL, &ps_total, sizeof(ps_total), 1);
-  if (result == -1) {
+  if (result == -1)
+  {
     return UV_ENOSYS;
   }
 
   ncpus = result = perfstat_cpu(NULL, NULL, sizeof(perfstat_cpu_t), 0);
-  if (result == -1) {
+  if (result == -1)
+  {
     return UV_ENOSYS;
   }
 
-  ps_cpus = (perfstat_cpu_t*) uv__malloc(ncpus * sizeof(perfstat_cpu_t));
-  if (!ps_cpus) {
+  ps_cpus = (perfstat_cpu_t *)uv__malloc(ncpus * sizeof(perfstat_cpu_t));
+  if (!ps_cpus)
+  {
     return UV_ENOMEM;
   }
 
   /* TODO(bnoordhuis) Check uv__strscpy() return value. */
   uv__strscpy(cpu_id.name, FIRST_CPU, sizeof(cpu_id.name));
   result = perfstat_cpu(&cpu_id, ps_cpus, sizeof(perfstat_cpu_t), ncpus);
-  if (result == -1) {
+  if (result == -1)
+  {
     uv__free(ps_cpus);
     return UV_ENOSYS;
   }
 
-  *cpu_infos = (uv_cpu_info_t*) uv__malloc(ncpus * sizeof(uv_cpu_info_t));
-  if (!*cpu_infos) {
+  *cpu_infos = (uv_cpu_info_t *)uv__malloc(ncpus * sizeof(uv_cpu_info_t));
+  if (!*cpu_infos)
+  {
     uv__free(ps_cpus);
     return UV_ENOMEM;
   }
@@ -1096,7 +1174,8 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   *count = ncpus;
 
   cpu_info = *cpu_infos;
-  while (idx < ncpus) {
+  while (idx < ncpus)
+  {
     cpu_info->speed = (int)(ps_total.processorHZ / 1000000);
     cpu_info->model = uv__strdup(ps_total.description);
     cpu_info->cpu_times.user = ps_cpus[idx].user;
@@ -1112,14 +1191,14 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   return 0;
 }
 
-
-int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
-  uv_interface_address_t* address;
+int uv_interface_addresses(uv_interface_address_t **addresses, int *count)
+{
+  uv_interface_address_t *address;
   int sockfd, sock6fd, inet6, i, r, size = 1;
   struct ifconf ifc;
   struct ifreq *ifr, *p, flg;
   struct in6_ifreq if6;
-  struct sockaddr_dl* sa_addr;
+  struct sockaddr_dl *sa_addr;
 
   ifc.ifc_req = NULL;
   sock6fd = -1;
@@ -1127,28 +1206,33 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   *count = 0;
   *addresses = NULL;
 
-  if (0 > (sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP))) {
+  if (0 > (sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP)))
+  {
     r = UV__ERR(errno);
     goto cleanup;
   }
 
-  if (0 > (sock6fd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_IP))) {
+  if (0 > (sock6fd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_IP)))
+  {
     r = UV__ERR(errno);
     goto cleanup;
   }
 
-  if (ioctl(sockfd, SIOCGSIZIFCONF, &size) == -1) {
+  if (ioctl(sockfd, SIOCGSIZIFCONF, &size) == -1)
+  {
     r = UV__ERR(errno);
     goto cleanup;
   }
 
-  ifc.ifc_req = (struct ifreq*)uv__malloc(size);
-  if (ifc.ifc_req == NULL) {
+  ifc.ifc_req = (struct ifreq *)uv__malloc(size);
+  if (ifc.ifc_req == NULL)
+  {
     r = UV_ENOMEM;
     goto cleanup;
   }
   ifc.ifc_len = size;
-  if (ioctl(sockfd, SIOCGIFCONF, &ifc) == -1) {
+  if (ioctl(sockfd, SIOCGIFCONF, &ifc) == -1)
+  {
     r = UV__ERR(errno);
     goto cleanup;
   }
@@ -1157,17 +1241,18 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 
   /* Count all up and running ipv4/ipv6 addresses */
   ifr = ifc.ifc_req;
-  while ((char*)ifr < (char*)ifc.ifc_req + ifc.ifc_len) {
+  while ((char *)ifr < (char *)ifc.ifc_req + ifc.ifc_len)
+  {
     p = ifr;
-    ifr = (struct ifreq*)
-      ((char*)ifr + sizeof(ifr->ifr_name) + ADDR_SIZE(ifr->ifr_addr));
+    ifr = (struct ifreq *)((char *)ifr + sizeof(ifr->ifr_name) + ADDR_SIZE(ifr->ifr_addr));
 
     if (!(p->ifr_addr.sa_family == AF_INET6 ||
           p->ifr_addr.sa_family == AF_INET))
       continue;
 
     memcpy(flg.ifr_name, p->ifr_name, sizeof(flg.ifr_name));
-    if (ioctl(sockfd, SIOCGIFFLAGS, &flg) == -1) {
+    if (ioctl(sockfd, SIOCGIFFLAGS, &flg) == -1)
+    {
       r = UV__ERR(errno);
       goto cleanup;
     }
@@ -1183,17 +1268,18 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 
   /* Alloc the return interface structs */
   *addresses = uv__calloc(*count, sizeof(**addresses));
-  if (!(*addresses)) {
+  if (!(*addresses))
+  {
     r = UV_ENOMEM;
     goto cleanup;
   }
   address = *addresses;
 
   ifr = ifc.ifc_req;
-  while ((char*)ifr < (char*)ifc.ifc_req + ifc.ifc_len) {
+  while ((char *)ifr < (char *)ifc.ifc_req + ifc.ifc_len)
+  {
     p = ifr;
-    ifr = (struct ifreq*)
-      ((char*)ifr + sizeof(ifr->ifr_name) + ADDR_SIZE(ifr->ifr_addr));
+    ifr = (struct ifreq *)((char *)ifr + sizeof(ifr->ifr_name) + ADDR_SIZE(ifr->ifr_addr));
 
     if (!(p->ifr_addr.sa_family == AF_INET6 ||
           p->ifr_addr.sa_family == AF_INET))
@@ -1213,11 +1299,12 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     address->name = uv__strdup(p->ifr_name);
 
     if (inet6)
-      address->address.address6 = *((struct sockaddr_in6*) &p->ifr_addr);
+      address->address.address6 = *((struct sockaddr_in6 *)&p->ifr_addr);
     else
-      address->address.address4 = *((struct sockaddr_in*) &p->ifr_addr);
+      address->address.address4 = *((struct sockaddr_in *)&p->ifr_addr);
 
-    if (inet6) {
+    if (inet6)
+    {
       memset(&if6, 0, sizeof(if6));
       r = uv__strscpy(if6.ifr_name, p->ifr_name, sizeof(if6.ifr_name));
       if (r == UV_E2BIG)
@@ -1226,13 +1313,15 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
       memcpy(&if6.ifr_Addr, &p->ifr_addr, sizeof(if6.ifr_Addr));
       if (ioctl(sock6fd, SIOCGIFNETMASK6, &if6) == -1)
         goto syserror;
-      address->netmask.netmask6 = *((struct sockaddr_in6*) &if6.ifr_Addr);
+      address->netmask.netmask6 = *((struct sockaddr_in6 *)&if6.ifr_Addr);
       /* Explicitly set family as the ioctl call appears to return it as 0. */
       address->netmask.netmask6.sin6_family = AF_INET6;
-    } else {
+    }
+    else
+    {
       if (ioctl(sockfd, SIOCGIFNETMASK, p) == -1)
         goto syserror;
-      address->netmask.netmask4 = *((struct sockaddr_in*) &p->ifr_addr);
+      address->netmask.netmask4 = *((struct sockaddr_in *)&p->ifr_addr);
       /* Explicitly set family as the ioctl call appears to return it as 0. */
       address->netmask.netmask4.sin_family = AF_INET;
     }
@@ -1244,18 +1333,20 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 
   /* Fill in physical addresses. */
   ifr = ifc.ifc_req;
-  while ((char*)ifr < (char*)ifc.ifc_req + ifc.ifc_len) {
+  while ((char *)ifr < (char *)ifc.ifc_req + ifc.ifc_len)
+  {
     p = ifr;
-    ifr = (struct ifreq*)
-      ((char*)ifr + sizeof(ifr->ifr_name) + ADDR_SIZE(ifr->ifr_addr));
+    ifr = (struct ifreq *)((char *)ifr + sizeof(ifr->ifr_name) + ADDR_SIZE(ifr->ifr_addr));
 
     if (p->ifr_addr.sa_family != AF_LINK)
       continue;
 
     address = *addresses;
-    for (i = 0; i < *count; i++) {
-      if (strcmp(address->name, p->ifr_name) == 0) {
-        sa_addr = (struct sockaddr_dl*) &p->ifr_addr;
+    for (i = 0; i < *count; i++)
+    {
+      if (strcmp(address->name, p->ifr_name) == 0)
+      {
+        sa_addr = (struct sockaddr_dl *)&p->ifr_addr;
         memcpy(address->phys_addr, LLADDR(sa_addr), sizeof(address->phys_addr));
       }
       address++;
@@ -1280,21 +1371,22 @@ cleanup:
   return r;
 }
 
-
-void uv_free_interface_addresses(uv_interface_address_t* addresses,
-  int count) {
+void uv_free_interface_addresses(uv_interface_address_t *addresses,
+                                 int count)
+{
   int i;
 
-  for (i = 0; i < count; ++i) {
+  for (i = 0; i < count; ++i)
+  {
     uv__free(addresses[i].name);
   }
 
   uv__free(addresses);
 }
 
-
-void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
-  struct pollfd* events;
+void uv__platform_invalidate_fd(uv_loop_t *loop, int fd)
+{
+  struct pollfd *events;
   uintptr_t i;
   uintptr_t nfds;
   struct poll_ctl pc;
@@ -1302,19 +1394,19 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
   assert(loop->watchers != NULL);
   assert(fd >= 0);
 
-  events = (struct pollfd*) loop->watchers[loop->nwatchers];
-  nfds = (uintptr_t) loop->watchers[loop->nwatchers + 1];
+  events = (struct pollfd *)loop->watchers[loop->nwatchers];
+  nfds = (uintptr_t)loop->watchers[loop->nwatchers + 1];
 
   if (events != NULL)
     /* Invalidate events with same file descriptor */
     for (i = 0; i < nfds; i++)
-      if ((int) events[i].fd == fd)
+      if ((int)events[i].fd == fd)
         events[i].fd = -1;
 
   /* Remove the file descriptor from the poll set */
   pc.events = 0;
   pc.cmd = PS_DELETE;
   pc.fd = fd;
-  if(loop->backend_fd >= 0)
+  if (loop->backend_fd >= 0)
     pollset_ctl(loop->backend_fd, &pc, 1);
 }

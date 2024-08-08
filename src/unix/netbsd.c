@@ -40,30 +40,31 @@
 #include <unistd.h>
 #include <time.h>
 
-
-int uv__platform_loop_init(uv_loop_t* loop) {
+int uv__platform_loop_init(uv_loop_t *loop)
+{
   return uv__kqueue_init(loop);
 }
 
-
-void uv__platform_loop_delete(uv_loop_t* loop) {
+void uv__platform_loop_delete(uv_loop_t *loop)
+{
 }
 
-
-void uv_loadavg(double avg[3]) {
+void uv_loadavg(double avg[3])
+{
   struct loadavg info;
   size_t size = sizeof(info);
   int which[] = {CTL_VM, VM_LOADAVG};
 
-  if (sysctl(which, ARRAY_SIZE(which), &info, &size, NULL, 0) == -1) return;
+  if (sysctl(which, ARRAY_SIZE(which), &info, &size, NULL, 0) == -1)
+    return;
 
-  avg[0] = (double) info.ldavg[0] / info.fscale;
-  avg[1] = (double) info.ldavg[1] / info.fscale;
-  avg[2] = (double) info.ldavg[2] / info.fscale;
+  avg[0] = (double)info.ldavg[0] / info.fscale;
+  avg[1] = (double)info.ldavg[1] / info.fscale;
+  avg[2] = (double)info.ldavg[2] / info.fscale;
 }
 
-
-int uv_exepath(char* buffer, size_t* size) {
+int uv_exepath(char *buffer, size_t *size)
+{
   /* Intermediate buffer, retrieving partial path name does not work
    * As of NetBSD-8(beta), vnode->path translator does not handle files
    * with longer names than 31 characters.
@@ -96,8 +97,8 @@ int uv_exepath(char* buffer, size_t* size) {
   return 0;
 }
 
-
-uint64_t uv_get_free_memory(void) {
+uint64_t uv_get_free_memory(void)
+{
   struct uvmexp info;
   size_t size = sizeof(info);
   int which[] = {CTL_VM, VM_UVMEXP};
@@ -105,11 +106,11 @@ uint64_t uv_get_free_memory(void) {
   if (sysctl(which, ARRAY_SIZE(which), &info, &size, NULL, 0))
     return 0;
 
-  return (uint64_t) info.free * sysconf(_SC_PAGESIZE);
+  return (uint64_t)info.free * sysconf(_SC_PAGESIZE);
 }
 
-
-uint64_t uv_get_total_memory(void) {
+uint64_t uv_get_total_memory(void)
+{
 #if defined(HW_PHYSMEM64)
   uint64_t info;
   int which[] = {CTL_HW, HW_PHYSMEM64};
@@ -122,21 +123,21 @@ uint64_t uv_get_total_memory(void) {
   if (sysctl(which, ARRAY_SIZE(which), &info, &size, NULL, 0))
     return 0;
 
-  return (uint64_t) info;
+  return (uint64_t)info;
 }
 
-
-uint64_t uv_get_constrained_memory(void) {
-  return 0;  /* Memory constraints are unknown. */
+uint64_t uv_get_constrained_memory(void)
+{
+  return 0; /* Memory constraints are unknown. */
 }
 
-
-uint64_t uv_get_available_memory(void) {
+uint64_t uv_get_available_memory(void)
+{
   return uv_get_free_memory();
 }
 
-
-int uv_resident_set_memory(size_t* rss) {
+int uv_resident_set_memory(size_t *rss)
+{
   kvm_t *kd = NULL;
   struct kinfo_proc2 *kinfo = NULL;
   pid_t pid;
@@ -149,10 +150,12 @@ int uv_resident_set_memory(size_t* rss) {
 
   kd = kvm_open(NULL, NULL, NULL, KVM_NO_FILES, "kvm_open");
 
-  if (kd == NULL) goto error;
+  if (kd == NULL)
+    goto error;
 
   kinfo = kvm_getproc2(kd, KERN_PROC_PID, pid, max_size, &nprocs);
-  if (kinfo == NULL) goto error;
+  if (kinfo == NULL)
+    goto error;
 
   *rss = kinfo->p_vm_rssize * page_size;
 
@@ -161,12 +164,13 @@ int uv_resident_set_memory(size_t* rss) {
   return 0;
 
 error:
-  if (kd) kvm_close(kd);
+  if (kd)
+    kvm_close(kd);
   return UV_EPERM;
 }
 
-
-int uv_uptime(double* uptime) {
+int uv_uptime(double *uptime)
+{
   time_t now;
   struct timeval info;
   size_t size = sizeof(info);
@@ -181,13 +185,13 @@ int uv_uptime(double* uptime) {
   return 0;
 }
 
-
-int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
+int uv_cpu_info(uv_cpu_info_t **cpu_infos, int *count)
+{
   unsigned int ticks = (unsigned int)sysconf(_SC_CLK_TCK);
   unsigned int multiplier = ((uint64_t)1000L / ticks);
   unsigned int cur = 0;
-  uv_cpu_info_t* cpu_info;
-  u_int64_t* cp_times;
+  uv_cpu_info_t *cpu_info;
+  u_int64_t *cp_times;
   char model[512];
   u_int64_t cpuspeed;
   int numcpus;
@@ -196,7 +200,8 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   size = sizeof(model);
   if (sysctlbyname("machdep.cpu_brand", &model, &size, NULL, 0) &&
-      sysctlbyname("hw.model", &model, &size, NULL, 0)) {
+      sysctlbyname("hw.model", &model, &size, NULL, 0))
+  {
     return UV__ERR(errno);
   }
 
@@ -219,34 +224,38 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     return UV__ERR(errno);
 
   *cpu_infos = uv__malloc(numcpus * sizeof(**cpu_infos));
-  if (!(*cpu_infos)) {
+  if (!(*cpu_infos))
+  {
     uv__free(cp_times);
     uv__free(*cpu_infos);
     return UV_ENOMEM;
   }
 
-  for (i = 0; i < numcpus; i++) {
+  for (i = 0; i < numcpus; i++)
+  {
     cpu_info = &(*cpu_infos)[i];
-    cpu_info->cpu_times.user = (uint64_t)(cp_times[CP_USER+cur]) * multiplier;
-    cpu_info->cpu_times.nice = (uint64_t)(cp_times[CP_NICE+cur]) * multiplier;
-    cpu_info->cpu_times.sys = (uint64_t)(cp_times[CP_SYS+cur]) * multiplier;
-    cpu_info->cpu_times.idle = (uint64_t)(cp_times[CP_IDLE+cur]) * multiplier;
-    cpu_info->cpu_times.irq = (uint64_t)(cp_times[CP_INTR+cur]) * multiplier;
+    cpu_info->cpu_times.user = (uint64_t)(cp_times[CP_USER + cur]) * multiplier;
+    cpu_info->cpu_times.nice = (uint64_t)(cp_times[CP_NICE + cur]) * multiplier;
+    cpu_info->cpu_times.sys = (uint64_t)(cp_times[CP_SYS + cur]) * multiplier;
+    cpu_info->cpu_times.idle = (uint64_t)(cp_times[CP_IDLE + cur]) * multiplier;
+    cpu_info->cpu_times.irq = (uint64_t)(cp_times[CP_INTR + cur]) * multiplier;
     cpu_info->model = uv__strdup(model);
-    cpu_info->speed = (int)(cpuspeed/(uint64_t) 1e6);
+    cpu_info->speed = (int)(cpuspeed / (uint64_t)1e6);
     cur += CPUSTATES;
   }
   uv__free(cp_times);
   return 0;
 }
 
-int uv__random_sysctl(void* buf, size_t len) {
+int uv__random_sysctl(void *buf, size_t len)
+{
   static int name[] = {CTL_KERN, KERN_ARND};
   size_t count, req;
-  unsigned char* p;
+  unsigned char *p;
 
   p = buf;
-  while (len) {
+  while (len)
+  {
     req = len < 32 ? len : 32;
     count = req;
 
@@ -254,7 +263,7 @@ int uv__random_sysctl(void* buf, size_t len) {
       return UV__ERR(errno);
 
     if (count != req)
-      return UV_EIO;  /* Can't happen. */
+      return UV_EIO; /* Can't happen. */
 
     p += count;
     len -= count;

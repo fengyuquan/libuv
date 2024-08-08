@@ -33,9 +33,9 @@
 #include "darwin-stub.h"
 #endif
 
-
-static int uv__pthread_setname_np(const char* name) {
-  char namebuf[64];  /* MAXTHREADNAMESIZE */
+static int uv__pthread_setname_np(const char *name)
+{
+  char namebuf[64]; /* MAXTHREADNAMESIZE */
   int err;
 
   strncpy(namebuf, name, sizeof(namebuf) - 1);
@@ -48,13 +48,13 @@ static int uv__pthread_setname_np(const char* name) {
   return 0;
 }
 
-
-int uv__set_process_title(const char* title) {
+int uv__set_process_title(const char *title)
+{
 #if TARGET_OS_IPHONE
   return uv__pthread_setname_np(title);
 #else
   CFStringRef (*pCFStringCreateWithCString)(CFAllocatorRef,
-                                            const char*,
+                                            const char *,
                                             CFStringEncoding);
   CFBundleRef (*pCFBundleGetBundleWithIdentifier)(CFStringRef);
   void *(*pCFBundleGetDataPointerForName)(CFBundleRef, CFStringRef);
@@ -64,16 +64,16 @@ int uv__set_process_title(const char* title) {
                                                CFTypeRef,
                                                CFStringRef,
                                                CFStringRef,
-                                               CFDictionaryRef*);
-  void* application_services_handle;
-  void* core_foundation_handle;
+                                               CFDictionaryRef *);
+  void *application_services_handle;
+  void *core_foundation_handle;
   CFBundleRef launch_services_bundle;
-  CFStringRef* display_name_key;
+  CFStringRef *display_name_key;
   CFDictionaryRef (*pCFBundleGetInfoDictionary)(CFBundleRef);
   CFBundleRef (*pCFBundleGetMainBundle)(void);
   CFDictionaryRef (*pLSApplicationCheckIn)(int, CFDictionaryRef);
   void (*pLSSetApplicationLaunchServicesServerConnectionStatus)(uint64_t,
-                                                                void*);
+                                                                void *);
   CFTypeRef asn;
   int err;
 
@@ -102,7 +102,8 @@ int uv__set_process_title(const char* title) {
   if (pCFStringCreateWithCString == NULL ||
       pCFBundleGetBundleWithIdentifier == NULL ||
       pCFBundleGetDataPointerForName == NULL ||
-      pCFBundleGetFunctionPointerForName == NULL) {
+      pCFBundleGetFunctionPointerForName == NULL)
+  {
     goto out;
   }
 
@@ -135,9 +136,9 @@ int uv__set_process_title(const char* title) {
     goto out;
 
   *(void **)(&pCFBundleGetInfoDictionary) = dlsym(core_foundation_handle,
-                                     "CFBundleGetInfoDictionary");
+                                                  "CFBundleGetInfoDictionary");
   *(void **)(&pCFBundleGetMainBundle) = dlsym(core_foundation_handle,
-                                 "CFBundleGetMainBundle");
+                                              "CFBundleGetMainBundle");
   if (pCFBundleGetInfoDictionary == NULL || pCFBundleGetMainBundle == NULL)
     goto out;
 
@@ -169,15 +170,16 @@ int uv__set_process_title(const char* title) {
     goto out;
 
   err = UV_EINVAL;
-  if (pLSSetApplicationInformationItem(-2,  /* Magic value. */
+  if (pLSSetApplicationInformationItem(-2, /* Magic value. */
                                        asn,
                                        *display_name_key,
                                        S(title),
-                                       NULL) != noErr) {
+                                       NULL) != noErr)
+  {
     goto out;
   }
 
-  uv__pthread_setname_np(title);  /* Don't care if it fails. */
+  uv__pthread_setname_np(title); /* Don't care if it fails. */
   err = 0;
 
 out:
@@ -188,5 +190,5 @@ out:
     dlclose(application_services_handle);
 
   return err;
-#endif  /* !TARGET_OS_IPHONE */
+#endif /* !TARGET_OS_IPHONE */
 }

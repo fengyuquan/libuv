@@ -50,12 +50,13 @@
  * Here, we create our own version of isatty() that uses ioctl() to identify
  * whether the fd is *really* a TTY or not.
  */
-static int isreallyatty(int file) {
+static int isreallyatty(int file)
+{
   int rc;
- 
+
   rc = !ioctl(file, TXISATTY + 0x81, NULL);
   if (!rc && errno != EBADF)
-      errno = ENOTTY;
+    errno = ENOTTY;
 
   return rc;
 }
@@ -66,7 +67,8 @@ static int orig_termios_fd = -1;
 static struct termios orig_termios;
 static _Atomic int termios_spinlock;
 
-int uv__tcsetattr(int fd, int how, const struct termios *term) {
+int uv__tcsetattr(int fd, int how, const struct termios *term)
+{
   int rc;
 
   do
@@ -79,7 +81,8 @@ int uv__tcsetattr(int fd, int how, const struct termios *term) {
   return 0;
 }
 
-static int uv__tty_is_slave(const int fd) {
+static int uv__tty_is_slave(const int fd)
+{
   int result;
 #if defined(__linux__) || defined(__FreeBSD__)
   int dummy;
@@ -106,7 +109,8 @@ static int uv__tty_is_slave(const int fd) {
   /* Lookup device's major for the pts driver and cache it. */
   static devmajor_t pts = NODEVMAJOR;
 
-  if (pts == NODEVMAJOR) {
+  if (pts == NODEVMAJOR)
+  {
     pts = getdevmajor("pts", S_IFCHR);
     if (pts == NODEVMAJOR)
       abort();
@@ -133,7 +137,8 @@ static int uv__tty_is_slave(const int fd) {
   return result;
 }
 
-int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int unused) {
+int uv_tty_init(uv_loop_t *loop, uv_tty_t *tty, int fd, int unused)
+{
   uv_handle_type type;
   int flags;
   int newfd;
@@ -173,7 +178,8 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int unused) {
    * different struct file, hence changing its properties doesn't affect
    * other processes.
    */
-  if (type == UV_TTY) {
+  if (type == UV_TTY)
+  {
     /* Reopening a pty in master mode won't work either because the reopened
      * pty will be in slave mode (*BSD) or reopening will allocate a new
      * master/slave pair (Linux). Therefore check if the fd points to a
@@ -184,7 +190,8 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int unused) {
     else
       r = -1;
 
-    if (r < 0) {
+    if (r < 0)
+    {
       /* fallback to using blocking writes */
       if (mode != O_RDONLY)
         flags |= UV_HANDLE_BLOCKING_WRITES;
@@ -194,7 +201,8 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int unused) {
     newfd = r;
 
     r = uv__dup2_cloexec(newfd, fd);
-    if (r < 0 && r != UV_EINVAL) {
+    if (r < 0 && r != UV_EINVAL)
+    {
       /* EINVAL means newfd == fd which could conceivably happen if another
        * thread called close(fd) between our calls to isatty() and open().
        * That's a rather unlikely event but let's handle it anyway.
@@ -207,7 +215,7 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int unused) {
   }
 
 skip:
-  uv__stream_init(loop, (uv_stream_t*) tty, UV_TTY);
+  uv__stream_init(loop, (uv_stream_t *)tty, UV_TTY);
 
   /* If anything fails beyond this point we need to remove the handle from
    * the handle queue, since it was added by uv__handle_init in uv_stream_init.
@@ -217,8 +225,9 @@ skip:
     uv__nonblock(fd, 1);
 
 #if defined(__APPLE__)
-  r = uv__stream_try_select((uv_stream_t*) tty, &fd);
-  if (r) {
+  r = uv__stream_try_select((uv_stream_t *)tty, &fd);
+  if (r)
+  {
     int rc = r;
     if (newfd != -1)
       uv__close(newfd);
@@ -235,13 +244,14 @@ skip:
   if (mode != O_RDONLY)
     flags |= UV_HANDLE_WRITABLE;
 
-  uv__stream_open((uv_stream_t*) tty, fd, flags);
+  uv__stream_open((uv_stream_t *)tty, fd, flags);
   tty->mode = UV_TTY_MODE_NORMAL;
 
   return 0;
 }
 
-static void uv__tty_make_raw(struct termios* tio) {
+static void uv__tty_make_raw(struct termios *tio)
+{
   assert(tio != NULL);
 
 #if defined __sun || defined __MVS__
@@ -278,17 +288,19 @@ static void uv__tty_make_raw(struct termios* tio) {
 #endif /* #ifdef __sun */
 }
 
-int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
+int uv_tty_set_mode(uv_tty_t *tty, uv_tty_mode_t mode)
+{
   struct termios tmp;
   int expected;
   int fd;
   int rc;
 
-  if (tty->mode == (int) mode)
+  if (tty->mode == (int)mode)
     return 0;
 
   fd = uv__stream_fd(tty);
-  if (tty->mode == UV_TTY_MODE_NORMAL && mode != UV_TTY_MODE_NORMAL) {
+  if (tty->mode == UV_TTY_MODE_NORMAL && mode != UV_TTY_MODE_NORMAL)
+  {
     do
       rc = tcgetattr(fd, &tty->orig_termios);
     while (rc == -1 && errno == EINTR);
@@ -301,7 +313,8 @@ int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
       expected = 0;
     while (!atomic_compare_exchange_strong(&termios_spinlock, &expected, 1));
 
-    if (orig_termios_fd == -1) {
+    if (orig_termios_fd == -1)
+    {
       orig_termios = tty->orig_termios;
       orig_termios_fd = fd;
     }
@@ -310,20 +323,21 @@ int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
   }
 
   tmp = tty->orig_termios;
-  switch (mode) {
-    case UV_TTY_MODE_NORMAL:
-      break;
-    case UV_TTY_MODE_RAW:
-      tmp.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-      tmp.c_oflag |= (ONLCR);
-      tmp.c_cflag |= (CS8);
-      tmp.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-      tmp.c_cc[VMIN] = 1;
-      tmp.c_cc[VTIME] = 0;
-      break;
-    case UV_TTY_MODE_IO:
-      uv__tty_make_raw(&tmp);
-      break;
+  switch (mode)
+  {
+  case UV_TTY_MODE_NORMAL:
+    break;
+  case UV_TTY_MODE_RAW:
+    tmp.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    tmp.c_oflag |= (ONLCR);
+    tmp.c_cflag |= (CS8);
+    tmp.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+    tmp.c_cc[VMIN] = 1;
+    tmp.c_cc[VTIME] = 0;
+    break;
+  case UV_TTY_MODE_IO:
+    uv__tty_make_raw(&tmp);
+    break;
   }
 
   /* Apply changes after draining */
@@ -334,8 +348,8 @@ int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
   return rc;
 }
 
-
-int uv_tty_get_winsize(uv_tty_t* tty, int* width, int* height) {
+int uv_tty_get_winsize(uv_tty_t *tty, int *width, int *height)
+{
   struct winsize ws;
   int err;
 
@@ -352,8 +366,8 @@ int uv_tty_get_winsize(uv_tty_t* tty, int* width, int* height) {
   return 0;
 }
 
-
-uv_handle_type uv_guess_handle(uv_file file) {
+uv_handle_type uv_guess_handle(uv_file file)
+{
   struct sockaddr_storage ss;
   struct stat s;
   socklen_t len;
@@ -365,7 +379,8 @@ uv_handle_type uv_guess_handle(uv_file file) {
   if (isatty(file))
     return UV_TTY;
 
-  if (uv__fstat(file, &s)) {
+  if (uv__fstat(file, &s))
+  {
 #if defined(__PASE__)
     /* On ibmi receiving RST from TCP instead of FIN immediately puts fd into
      * an error state. fstat will return EINVAL, getsockname will also return
@@ -376,7 +391,8 @@ uv_handle_type uv_guess_handle(uv_file file) {
      * their read callback and close this fd.
      */
     len = sizeof(ss);
-    if (getsockname(file, (struct sockaddr*) &ss, &len)) {
+    if (getsockname(file, (struct sockaddr *)&ss, &len))
+    {
       if (errno == EINVAL)
         return UV_TCP;
     }
@@ -388,7 +404,7 @@ uv_handle_type uv_guess_handle(uv_file file) {
     return UV_FILE;
 
   if (S_ISCHR(s.st_mode))
-    return UV_FILE;  /* XXX UV_NAMED_PIPE? */
+    return UV_FILE; /* XXX UV_NAMED_PIPE? */
 
   if (S_ISFIFO(s.st_mode))
     return UV_NAMED_PIPE;
@@ -397,7 +413,8 @@ uv_handle_type uv_guess_handle(uv_file file) {
     return UV_UNKNOWN_HANDLE;
 
   len = sizeof(ss);
-  if (getsockname(file, (struct sockaddr*) &ss, &len)) {
+  if (getsockname(file, (struct sockaddr *)&ss, &len))
+  {
 #if defined(_AIX)
     /* On aix receiving RST from TCP instead of FIN immediately puts fd into
      * an error state. In such case getsockname will return EINVAL, even if
@@ -406,7 +423,8 @@ uv_handle_type uv_guess_handle(uv_file file) {
      * still, so that the user can get immediately notified of the error in
      * their read callback and close this fd.
      */
-    if (errno == EINVAL) {
+    if (errno == EINVAL)
+    {
       return UV_TCP;
     }
 #endif
@@ -421,7 +439,8 @@ uv_handle_type uv_guess_handle(uv_file file) {
     if (ss.ss_family == AF_INET || ss.ss_family == AF_INET6)
       return UV_UDP;
 
-  if (type == SOCK_STREAM) {
+  if (type == SOCK_STREAM)
+  {
 #if defined(_AIX) || defined(__DragonFly__)
     /* on AIX/DragonFly the getsockname call returns an empty sa structure
      * for sockets of type AF_UNIX.  For all other types it will
@@ -440,19 +459,19 @@ uv_handle_type uv_guess_handle(uv_file file) {
   return UV_UNKNOWN_HANDLE;
 }
 
-
 /* This function is async signal-safe, meaning that it's safe to call from
  * inside a signal handler _unless_ execution was inside uv_tty_set_mode()'s
  * critical section when the signal was raised.
  */
-int uv_tty_reset_mode(void) {
+int uv_tty_reset_mode(void)
+{
   int saved_errno;
   int err;
 
   saved_errno = errno;
 
   if (atomic_exchange(&termios_spinlock, 1))
-    return UV_EBUSY;  /* In uv_tty_set_mode(). */
+    return UV_EBUSY; /* In uv_tty_set_mode(). */
 
   err = 0;
   if (orig_termios_fd != -1)
@@ -464,9 +483,11 @@ int uv_tty_reset_mode(void) {
   return err;
 }
 
-void uv_tty_set_vterm_state(uv_tty_vtermstate_t state) {
+void uv_tty_set_vterm_state(uv_tty_vtermstate_t state)
+{
 }
 
-int uv_tty_get_vterm_state(uv_tty_vtermstate_t* state) {
+int uv_tty_get_vterm_state(uv_tty_vtermstate_t *state)
+{
   return UV_ENOTSUP;
 }

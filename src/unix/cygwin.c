@@ -25,7 +25,8 @@
 #include <sys/sysinfo.h>
 #include <unistd.h>
 
-int uv_uptime(double* uptime) {
+int uv_uptime(double *uptime)
+{
   struct sysinfo info;
 
   if (sysinfo(&info) < 0)
@@ -35,9 +36,10 @@ int uv_uptime(double* uptime) {
   return 0;
 }
 
-int uv_resident_set_memory(size_t* rss) {
+int uv_resident_set_memory(size_t *rss)
+{
   char buf[1024];
-  const char* s;
+  const char *s;
   long val;
   int rc;
   int i;
@@ -53,7 +55,8 @@ int uv_resident_set_memory(size_t* rss) {
   if (s == NULL)
     goto err;
 
-  for (i = 1; i <= 22; i++) {
+  for (i = 1; i <= 22; i++)
+  {
     s = strchr(s + 1, ' ');
     if (s == NULL)
       goto err;
@@ -77,17 +80,20 @@ err:
   return UV_EINVAL;
 }
 
-int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
+int uv_cpu_info(uv_cpu_info_t **cpu_infos, int *count)
+{
   /* FIXME: read /proc/stat? */
   *cpu_infos = NULL;
   *count = 0;
   return UV_ENOSYS;
 }
 
-uint64_t uv_get_constrained_memory(void) {
-  return 0;  /* Memory constraints are unknown. */
+uint64_t uv_get_constrained_memory(void)
+{
+  return 0; /* Memory constraints are unknown. */
 }
 
-uint64_t uv_get_available_memory(void) {
+uint64_t uv_get_available_memory(void)
+{
   return uv_get_free_memory();
 }

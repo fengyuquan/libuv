@@ -27,17 +27,17 @@
 #include <string.h>
 #include <unistd.h>
 
-int uv_loop_init(uv_loop_t* loop) {
-  uv__loop_internal_fields_t* lfields;
-  void* saved_data;
+int uv_loop_init(uv_loop_t *loop)
+{
+  uv__loop_internal_fields_t *lfields;
+  void *saved_data;
   int err;
-
 
   saved_data = loop->data;
   memset(loop, 0, sizeof(*loop));
   loop->data = saved_data;
 
-  lfields = (uv__loop_internal_fields_t*) uv__calloc(1, sizeof(*lfields));
+  lfields = (uv__loop_internal_fields_t *)uv__calloc(1, sizeof(*lfields));
   if (lfields == NULL)
     return UV_ENOMEM;
   loop->internal_fields = lfields;
@@ -49,7 +49,7 @@ int uv_loop_init(uv_loop_t* loop) {
          0,
          sizeof(lfields->loop_metrics.metrics));
 
-  heap_init((struct heap*) &loop->timer_heap);
+  heap_init((struct heap *)&loop->timer_heap);
   uv__queue_init(&loop->wq);
   uv__queue_init(&loop->idle_handles);
   uv__queue_init(&loop->async_handles);
@@ -128,11 +128,11 @@ fail_metrics_mutex_init:
   return err;
 }
 
-
-int uv_loop_fork(uv_loop_t* loop) {
+int uv_loop_fork(uv_loop_t *loop)
+{
   int err;
   unsigned int i;
-  uv__io_t* w;
+  uv__io_t *w;
 
   err = uv__io_fork(loop);
   if (err)
@@ -147,12 +147,14 @@ int uv_loop_fork(uv_loop_t* loop) {
     return err;
 
   /* Rearm all the watchers that aren't re-queued by the above. */
-  for (i = 0; i < loop->nwatchers; i++) {
+  for (i = 0; i < loop->nwatchers; i++)
+  {
     w = loop->watchers[i];
     if (w == NULL)
       continue;
 
-    if (w->pevents != 0 && uv__queue_empty(&w->watcher_queue)) {
+    if (w->pevents != 0 && uv__queue_empty(&w->watcher_queue))
+    {
       w->events = 0; /* Force re-registration in uv__io_poll. */
       uv__queue_insert_tail(&loop->watcher_queue, &w->watcher_queue);
     }
@@ -161,20 +163,22 @@ int uv_loop_fork(uv_loop_t* loop) {
   return 0;
 }
 
-
-void uv__loop_close(uv_loop_t* loop) {
-  uv__loop_internal_fields_t* lfields;
+void uv__loop_close(uv_loop_t *loop)
+{
+  uv__loop_internal_fields_t *lfields;
 
   uv__signal_loop_cleanup(loop);
   uv__platform_loop_delete(loop);
   uv__async_stop(loop);
 
-  if (loop->emfile_fd != -1) {
+  if (loop->emfile_fd != -1)
+  {
     uv__close(loop->emfile_fd);
     loop->emfile_fd = -1;
   }
 
-  if (loop->backend_fd != -1) {
+  if (loop->backend_fd != -1)
+  {
     uv__close(loop->backend_fd);
     loop->backend_fd = -1;
   }
@@ -207,23 +211,24 @@ void uv__loop_close(uv_loop_t* loop) {
   loop->internal_fields = NULL;
 }
 
-
-int uv__loop_configure(uv_loop_t* loop, uv_loop_option option, va_list ap) {
-  uv__loop_internal_fields_t* lfields;
+int uv__loop_configure(uv_loop_t *loop, uv_loop_option option, va_list ap)
+{
+  uv__loop_internal_fields_t *lfields;
 
   lfields = uv__get_internal_fields(loop);
-  if (option == UV_METRICS_IDLE_TIME) {
+  if (option == UV_METRICS_IDLE_TIME)
+  {
     lfields->flags |= UV_METRICS_IDLE_TIME;
     return 0;
   }
 
 #if defined(__linux__)
-  if (option == UV_LOOP_USE_IO_URING_SQPOLL) {
+  if (option == UV_LOOP_USE_IO_URING_SQPOLL)
+  {
     loop->flags |= UV_LOOP_ENABLE_IO_URING_SQPOLL;
     return 0;
   }
 #endif
-
 
   if (option != UV_LOOP_BLOCK_SIGNAL)
     return UV_ENOSYS;

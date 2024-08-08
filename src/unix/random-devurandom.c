@@ -28,8 +28,8 @@
 static uv_once_t once = UV_ONCE_INIT;
 static int status;
 
-
-int uv__random_readpath(const char* path, void* buf, size_t buflen) {
+int uv__random_readpath(const char *path, void *buf, size_t buflen)
+{
   struct stat s;
   size_t pos;
   ssize_t n;
@@ -40,27 +40,32 @@ int uv__random_readpath(const char* path, void* buf, size_t buflen) {
   if (fd < 0)
     return fd;
 
-  if (uv__fstat(fd, &s)) {
+  if (uv__fstat(fd, &s))
+  {
     uv__close(fd);
     return UV__ERR(errno);
   }
 
-  if (!S_ISCHR(s.st_mode)) {
+  if (!S_ISCHR(s.st_mode))
+  {
     uv__close(fd);
     return UV_EIO;
   }
 
-  for (pos = 0; pos != buflen; pos += n) {
+  for (pos = 0; pos != buflen; pos += n)
+  {
     do
-      n = read(fd, (char*) buf + pos, buflen - pos);
+      n = read(fd, (char *)buf + pos, buflen - pos);
     while (n == -1 && errno == EINTR);
 
-    if (n == -1) {
+    if (n == -1)
+    {
       uv__close(fd);
       return UV__ERR(errno);
     }
 
-    if (n == 0) {
+    if (n == 0)
+    {
       uv__close(fd);
       return UV_EIO;
     }
@@ -70,8 +75,8 @@ int uv__random_readpath(const char* path, void* buf, size_t buflen) {
   return 0;
 }
 
-
-static void uv__random_devurandom_init(void) {
+static void uv__random_devurandom_init(void)
+{
   char c;
 
   /* Linux's random(4) man page suggests applications should read at least
@@ -82,8 +87,8 @@ static void uv__random_devurandom_init(void) {
   status = uv__random_readpath("/dev/random", &c, 1);
 }
 
-
-int uv__random_devurandom(void* buf, size_t buflen) {
+int uv__random_devurandom(void *buf, size_t buflen)
+{
   uv_once(&once, uv__random_devurandom_init);
 
   if (status != 0)

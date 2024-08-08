@@ -30,13 +30,13 @@
 #include <mach-o/dyld.h> /* _NSGetExecutablePath */
 #include <sys/resource.h>
 #include <sys/sysctl.h>
-#include <unistd.h>  /* sysconf */
+#include <unistd.h> /* sysconf */
 
 static uv_once_t once = UV_ONCE_INIT;
 static mach_timebase_info_data_t timebase;
 
-
-int uv__platform_loop_init(uv_loop_t* loop) {
+int uv__platform_loop_init(uv_loop_t *loop)
+{
   loop->cf_state = NULL;
 
   if (uv__kqueue_init(loop))
@@ -45,25 +45,25 @@ int uv__platform_loop_init(uv_loop_t* loop) {
   return 0;
 }
 
-
-void uv__platform_loop_delete(uv_loop_t* loop) {
+void uv__platform_loop_delete(uv_loop_t *loop)
+{
   uv__fsevents_loop_delete(loop);
 }
 
-
-static void uv__hrtime_init_once(void) {
+static void uv__hrtime_init_once(void)
+{
   if (KERN_SUCCESS != mach_timebase_info(&timebase))
     abort();
 }
 
-
-uint64_t uv__hrtime(uv_clocktype_t type) {
+uint64_t uv__hrtime(uv_clocktype_t type)
+{
   uv_once(&once, uv__hrtime_init_once);
   return mach_continuous_time() * timebase.numer / timebase.denom;
 }
 
-
-int uv_exepath(char* buffer, size_t* size) {
+int uv_exepath(char *buffer, size_t *size)
+{
   /* realpath(exepath) may be > PATH_MAX so double it to be on the safe side. */
   char abspath[PATH_MAX * 2 + 1];
   char exepath[PATH_MAX + 1];
@@ -94,21 +94,22 @@ int uv_exepath(char* buffer, size_t* size) {
   return 0;
 }
 
-
-uint64_t uv_get_free_memory(void) {
+uint64_t uv_get_free_memory(void)
+{
   vm_statistics_data_t info;
   mach_msg_type_number_t count = sizeof(info) / sizeof(integer_t);
 
   if (host_statistics(mach_host_self(), HOST_VM_INFO,
-                      (host_info_t)&info, &count) != KERN_SUCCESS) {
+                      (host_info_t)&info, &count) != KERN_SUCCESS)
+  {
     return 0;
   }
 
-  return (uint64_t) info.free_count * sysconf(_SC_PAGESIZE);
+  return (uint64_t)info.free_count * sysconf(_SC_PAGESIZE);
 }
 
-
-uint64_t uv_get_total_memory(void) {
+uint64_t uv_get_total_memory(void)
+{
   uint64_t info;
   int which[] = {CTL_HW, HW_MEMSIZE};
   size_t size = sizeof(info);
@@ -116,34 +117,35 @@ uint64_t uv_get_total_memory(void) {
   if (sysctl(which, ARRAY_SIZE(which), &info, &size, NULL, 0))
     return 0;
 
-  return (uint64_t) info;
+  return (uint64_t)info;
 }
 
-
-uint64_t uv_get_constrained_memory(void) {
-  return 0;  /* Memory constraints are unknown. */
+uint64_t uv_get_constrained_memory(void)
+{
+  return 0; /* Memory constraints are unknown. */
 }
 
-
-uint64_t uv_get_available_memory(void) {
+uint64_t uv_get_available_memory(void)
+{
   return uv_get_free_memory();
 }
 
-
-void uv_loadavg(double avg[3]) {
+void uv_loadavg(double avg[3])
+{
   struct loadavg info;
   size_t size = sizeof(info);
   int which[] = {CTL_VM, VM_LOADAVG};
 
-  if (sysctl(which, ARRAY_SIZE(which), &info, &size, NULL, 0) < 0) return;
+  if (sysctl(which, ARRAY_SIZE(which), &info, &size, NULL, 0) < 0)
+    return;
 
-  avg[0] = (double) info.ldavg[0] / info.fscale;
-  avg[1] = (double) info.ldavg[1] / info.fscale;
-  avg[2] = (double) info.ldavg[2] / info.fscale;
+  avg[0] = (double)info.ldavg[0] / info.fscale;
+  avg[1] = (double)info.ldavg[1] / info.fscale;
+  avg[2] = (double)info.ldavg[2] / info.fscale;
 }
 
-
-int uv_resident_set_memory(size_t* rss) {
+int uv_resident_set_memory(size_t *rss)
+{
   mach_msg_type_number_t count;
   task_basic_info_data_t info;
   kern_return_t err;
@@ -151,9 +153,9 @@ int uv_resident_set_memory(size_t* rss) {
   count = TASK_BASIC_INFO_COUNT;
   err = task_info(mach_task_self(),
                   TASK_BASIC_INFO,
-                  (task_info_t) &info,
+                  (task_info_t)&info,
                   &count);
-  (void) &err;
+  (void)&err;
   /* task_info(TASK_BASIC_INFO) cannot really fail. Anything other than
    * KERN_SUCCESS implies a libuv bug.
    */
@@ -163,8 +165,8 @@ int uv_resident_set_memory(size_t* rss) {
   return 0;
 }
 
-
-int uv_uptime(double* uptime) {
+int uv_uptime(double *uptime)
+{
   time_t now;
   struct timeval info;
   size_t size = sizeof(info);
@@ -179,7 +181,8 @@ int uv_uptime(double* uptime) {
   return 0;
 }
 
-int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
+int uv_cpu_info(uv_cpu_info_t **cpu_infos, int *count)
+{
   unsigned int ticks = (unsigned int)sysconf(_SC_CLK_TCK),
                multiplier = ((uint64_t)1000L / ticks);
   char model[512];
@@ -189,11 +192,12 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   natural_t numcpus;
   mach_msg_type_number_t msg_type;
   processor_cpu_load_info_data_t *info;
-  uv_cpu_info_t* cpu_info;
+  uv_cpu_info_t *cpu_info;
 
   size = sizeof(model);
   if (sysctlbyname("machdep.cpu.brand_string", &model, &size, NULL, 0) &&
-      sysctlbyname("hw.model", &model, &size, NULL, 0)) {
+      sysctlbyname("hw.model", &model, &size, NULL, 0))
+  {
     return UV__ERR(errno);
   }
 
@@ -206,20 +210,23 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     cpuspeed = 2400000000U;
 
   if (host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO, &numcpus,
-                          (processor_info_array_t*)&info,
-                          &msg_type) != KERN_SUCCESS) {
-    return UV_EINVAL;  /* FIXME(bnoordhuis) Translate error. */
+                          (processor_info_array_t *)&info,
+                          &msg_type) != KERN_SUCCESS)
+  {
+    return UV_EINVAL; /* FIXME(bnoordhuis) Translate error. */
   }
 
   *cpu_infos = uv__malloc(numcpus * sizeof(**cpu_infos));
-  if (!(*cpu_infos)) {
+  if (!(*cpu_infos))
+  {
     vm_deallocate(mach_task_self(), (vm_address_t)info, msg_type);
     return UV_ENOMEM;
   }
 
   *count = numcpus;
 
-  for (i = 0; i < numcpus; i++) {
+  for (i = 0; i < numcpus; i++)
+  {
     cpu_info = &(*cpu_infos)[i];
 
     cpu_info->cpu_times.user = (uint64_t)(info[i].cpu_ticks[0]) * multiplier;

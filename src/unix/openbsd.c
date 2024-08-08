@@ -35,30 +35,31 @@
 #include <string.h>
 #include <unistd.h>
 
-
-int uv__platform_loop_init(uv_loop_t* loop) {
+int uv__platform_loop_init(uv_loop_t *loop)
+{
   return uv__kqueue_init(loop);
 }
 
-
-void uv__platform_loop_delete(uv_loop_t* loop) {
+void uv__platform_loop_delete(uv_loop_t *loop)
+{
 }
 
-
-void uv_loadavg(double avg[3]) {
+void uv_loadavg(double avg[3])
+{
   struct loadavg info;
   size_t size = sizeof(info);
   int which[] = {CTL_VM, VM_LOADAVG};
 
-  if (sysctl(which, ARRAY_SIZE(which), &info, &size, NULL, 0) < 0) return;
+  if (sysctl(which, ARRAY_SIZE(which), &info, &size, NULL, 0) < 0)
+    return;
 
-  avg[0] = (double) info.ldavg[0] / info.fscale;
-  avg[1] = (double) info.ldavg[1] / info.fscale;
-  avg[2] = (double) info.ldavg[2] / info.fscale;
+  avg[0] = (double)info.ldavg[0] / info.fscale;
+  avg[1] = (double)info.ldavg[1] / info.fscale;
+  avg[2] = (double)info.ldavg[2] / info.fscale;
 }
 
-
-int uv_exepath(char* buffer, size_t* size) {
+int uv_exepath(char *buffer, size_t *size)
+{
   int mib[4];
   char **argsbuf = NULL;
   size_t argsbuf_size = 100U;
@@ -70,7 +71,8 @@ int uv_exepath(char* buffer, size_t* size) {
     return UV_EINVAL;
 
   mypid = getpid();
-  for (;;) {
+  for (;;)
+  {
     err = UV_ENOMEM;
     argsbuf = uv__reallocf(argsbuf, argsbuf_size);
     if (argsbuf == NULL)
@@ -79,18 +81,21 @@ int uv_exepath(char* buffer, size_t* size) {
     mib[1] = KERN_PROC_ARGS;
     mib[2] = mypid;
     mib[3] = KERN_PROC_ARGV;
-    if (sysctl(mib, ARRAY_SIZE(mib), argsbuf, &argsbuf_size, NULL, 0) == 0) {
+    if (sysctl(mib, ARRAY_SIZE(mib), argsbuf, &argsbuf_size, NULL, 0) == 0)
+    {
       break;
     }
-    if (errno != ENOMEM) {
+    if (errno != ENOMEM)
+    {
       err = UV__ERR(errno);
       goto out;
     }
     argsbuf_size *= 2U;
   }
 
-  if (argsbuf[0] == NULL) {
-    err = UV_EINVAL;  /* FIXME(bnoordhuis) More appropriate error. */
+  if (argsbuf[0] == NULL)
+  {
+    err = UV_EINVAL; /* FIXME(bnoordhuis) More appropriate error. */
     goto out;
   }
 
@@ -109,8 +114,8 @@ out:
   return err;
 }
 
-
-uint64_t uv_get_free_memory(void) {
+uint64_t uv_get_free_memory(void)
+{
   struct uvmexp info;
   size_t size = sizeof(info);
   int which[] = {CTL_VM, VM_UVMEXP};
@@ -118,11 +123,11 @@ uint64_t uv_get_free_memory(void) {
   if (sysctl(which, ARRAY_SIZE(which), &info, &size, NULL, 0))
     return 0;
 
-  return (uint64_t) info.free * sysconf(_SC_PAGESIZE);
+  return (uint64_t)info.free * sysconf(_SC_PAGESIZE);
 }
 
-
-uint64_t uv_get_total_memory(void) {
+uint64_t uv_get_total_memory(void)
+{
   uint64_t info;
   int which[] = {CTL_HW, HW_PHYSMEM64};
   size_t size = sizeof(info);
@@ -130,21 +135,21 @@ uint64_t uv_get_total_memory(void) {
   if (sysctl(which, ARRAY_SIZE(which), &info, &size, NULL, 0))
     return 0;
 
-  return (uint64_t) info;
+  return (uint64_t)info;
 }
 
-
-uint64_t uv_get_constrained_memory(void) {
-  return 0;  /* Memory constraints are unknown. */
+uint64_t uv_get_constrained_memory(void)
+{
+  return 0; /* Memory constraints are unknown. */
 }
 
-
-uint64_t uv_get_available_memory(void) {
+uint64_t uv_get_available_memory(void)
+{
   return uv_get_free_memory();
 }
 
-
-int uv_resident_set_memory(size_t* rss) {
+int uv_resident_set_memory(size_t *rss)
+{
   struct kinfo_proc kinfo;
   size_t page_size = getpagesize();
   size_t size = sizeof(struct kinfo_proc);
@@ -164,8 +169,8 @@ int uv_resident_set_memory(size_t* rss) {
   return 0;
 }
 
-
-int uv_uptime(double* uptime) {
+int uv_uptime(double *uptime)
+{
   time_t now;
   struct timeval info;
   size_t size = sizeof(info);
@@ -180,18 +185,18 @@ int uv_uptime(double* uptime) {
   return 0;
 }
 
-
-int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
+int uv_cpu_info(uv_cpu_info_t **cpu_infos, int *count)
+{
   unsigned int ticks = (unsigned int)sysconf(_SC_CLK_TCK),
                multiplier = ((uint64_t)1000L / ticks), cpuspeed;
   uint64_t info[CPUSTATES];
   char model[512];
   int numcpus = 1;
-  int which[] = {CTL_HW,HW_MODEL};
-  int percpu[] = {CTL_KERN,KERN_CPTIME2,0};
+  int which[] = {CTL_HW, HW_MODEL};
+  int percpu[] = {CTL_KERN, KERN_CPTIME2, 0};
   size_t size;
   int i, j;
-  uv_cpu_info_t* cpu_info;
+  uv_cpu_info_t *cpu_info;
 
   size = sizeof(model);
   if (sysctl(which, ARRAY_SIZE(which), &model, &size, NULL, 0))
@@ -215,7 +220,8 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     goto error;
 
   size = sizeof(info);
-  for (i = 0; i < numcpus; i++) {
+  for (i = 0; i < numcpus; i++)
+  {
     percpu[2] = i;
     if (sysctl(percpu, ARRAY_SIZE(percpu), &info, &size, NULL, 0))
       goto error;

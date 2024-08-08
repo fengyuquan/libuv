@@ -33,7 +33,8 @@
 #include <errno.h>
 #include <unistd.h>
 
-int uv__platform_loop_init(uv_loop_t* loop) {
+int uv__platform_loop_init(uv_loop_t *loop)
+{
   loop->poll_fds = NULL;
   loop->poll_fds_used = 0;
   loop->poll_fds_size = 0;
@@ -41,21 +42,24 @@ int uv__platform_loop_init(uv_loop_t* loop) {
   return 0;
 }
 
-void uv__platform_loop_delete(uv_loop_t* loop) {
+void uv__platform_loop_delete(uv_loop_t *loop)
+{
   uv__free(loop->poll_fds);
   loop->poll_fds = NULL;
 }
 
-int uv__io_fork(uv_loop_t* loop) {
+int uv__io_fork(uv_loop_t *loop)
+{
   uv__platform_loop_delete(loop);
   return uv__platform_loop_init(loop);
 }
 
 /* Allocate or dynamically resize our poll fds array.  */
-static void uv__pollfds_maybe_resize(uv_loop_t* loop) {
+static void uv__pollfds_maybe_resize(uv_loop_t *loop)
+{
   size_t i;
   size_t n;
-  struct pollfd* p;
+  struct pollfd *p;
 
   if (loop->poll_fds_used < loop->poll_fds_size)
     return;
@@ -66,7 +70,8 @@ static void uv__pollfds_maybe_resize(uv_loop_t* loop) {
     abort();
 
   loop->poll_fds = p;
-  for (i = loop->poll_fds_size; i < n; i++) {
+  for (i = loop->poll_fds_size; i < n; i++)
+  {
     loop->poll_fds[i].fd = -1;
     loop->poll_fds[i].events = 0;
     loop->poll_fds[i].revents = 0;
@@ -75,7 +80,8 @@ static void uv__pollfds_maybe_resize(uv_loop_t* loop) {
 }
 
 /* Primitive swap operation on poll fds array elements.  */
-static void uv__pollfds_swap(uv_loop_t* loop, size_t l, size_t r) {
+static void uv__pollfds_swap(uv_loop_t *loop, size_t l, size_t r)
+{
   struct pollfd pfd;
   pfd = loop->poll_fds[l];
   loop->poll_fds[l] = loop->poll_fds[r];
@@ -83,14 +89,17 @@ static void uv__pollfds_swap(uv_loop_t* loop, size_t l, size_t r) {
 }
 
 /* Add a watcher's fd to our poll fds array with its pending events.  */
-static void uv__pollfds_add(uv_loop_t* loop, uv__io_t* w) {
+static void uv__pollfds_add(uv_loop_t *loop, uv__io_t *w)
+{
   size_t i;
-  struct pollfd* pe;
+  struct pollfd *pe;
 
   /* If the fd is already in the set just update its events.  */
   assert(!loop->poll_fds_iterating);
-  for (i = 0; i < loop->poll_fds_used; ++i) {
-    if (loop->poll_fds[i].fd == w->fd) {
+  for (i = 0; i < loop->poll_fds_used; ++i)
+  {
+    if (loop->poll_fds[i].fd == w->fd)
+    {
       loop->poll_fds[i].events = w->pevents;
       return;
     }
@@ -104,11 +113,14 @@ static void uv__pollfds_add(uv_loop_t* loop, uv__io_t* w) {
 }
 
 /* Remove a watcher's fd from our poll fds array.  */
-static void uv__pollfds_del(uv_loop_t* loop, int fd) {
+static void uv__pollfds_del(uv_loop_t *loop, int fd)
+{
   size_t i;
   assert(!loop->poll_fds_iterating);
-  for (i = 0; i < loop->poll_fds_used;) {
-    if (loop->poll_fds[i].fd == fd) {
+  for (i = 0; i < loop->poll_fds_used;)
+  {
+    if (loop->poll_fds[i].fd == fd)
+    {
       /* swap to last position and remove */
       --loop->poll_fds_used;
       uv__pollfds_swap(loop, i, loop->poll_fds_used);
@@ -120,35 +132,38 @@ static void uv__pollfds_del(uv_loop_t* loop, int fd) {
        */
       if (-1 != fd)
         return;
-    } else {
+    }
+    else
+    {
       /* We must only increment the loop counter when the fds do not match.
        * Otherwise, when we are purging an invalidated fd, the value just
        * swapped here from the previous end of the array will be skipped.
        */
-       ++i;
+      ++i;
     }
   }
 }
 
-
-void uv__io_poll(uv_loop_t* loop, int timeout) {
-  uv__loop_internal_fields_t* lfields;
-  sigset_t* pset;
+void uv__io_poll(uv_loop_t *loop, int timeout)
+{
+  uv__loop_internal_fields_t *lfields;
+  sigset_t *pset;
   sigset_t set;
   uint64_t time_base;
   uint64_t time_diff;
-  struct uv__queue* q;
-  uv__io_t* w;
+  struct uv__queue *q;
+  uv__io_t *w;
   size_t i;
   unsigned int nevents;
   int nfds;
   int have_signals;
-  struct pollfd* pe;
+  struct pollfd *pe;
   int fd;
   int user_timeout;
   int reset_timeout;
 
-  if (loop->nfds == 0) {
+  if (loop->nfds == 0)
+  {
     assert(uv__queue_empty(&loop->watcher_queue));
     return;
   }
@@ -156,7 +171,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   lfields = uv__get_internal_fields(loop);
 
   /* Take queued watchers and add their fds to our poll fds array.  */
-  while (!uv__queue_empty(&loop->watcher_queue)) {
+  while (!uv__queue_empty(&loop->watcher_queue))
+  {
     q = uv__queue_head(&loop->watcher_queue);
     uv__queue_remove(q);
     uv__queue_init(q);
@@ -164,7 +180,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     w = uv__queue_data(q, uv__io_t, watcher_queue);
     assert(w->pevents != 0);
     assert(w->fd >= 0);
-    assert(w->fd < (int) loop->nwatchers);
+    assert(w->fd < (int)loop->nwatchers);
 
     uv__pollfds_add(loop, w);
 
@@ -173,7 +189,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
   /* Prepare a set of signals to block around poll(), if any.  */
   pset = NULL;
-  if (loop->flags & UV_LOOP_BLOCK_SIGPROF) {
+  if (loop->flags & UV_LOOP_BLOCK_SIGPROF)
+  {
     pset = &set;
     sigemptyset(pset);
     sigaddset(pset, SIGPROF);
@@ -182,11 +199,14 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   assert(timeout >= -1);
   time_base = loop->time;
 
-  if (lfields->flags & UV_METRICS_IDLE_TIME) {
+  if (lfields->flags & UV_METRICS_IDLE_TIME)
+  {
     reset_timeout = 1;
     user_timeout = timeout;
     timeout = 0;
-  } else {
+  }
+  else
+  {
     reset_timeout = 0;
   }
 
@@ -194,7 +214,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
    * results from poll() but they turn out not to be interesting to
    * our caller then we need to loop around and poll() again.
    */
-  for (;;) {
+  for (;;)
+  {
     /* Only need to set the provider_entry_time if timeout != 0. The function
      * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
      */
@@ -221,8 +242,10 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
      */
     SAVE_ERRNO(uv__update_time(loop));
 
-    if (nfds == 0) {
-      if (reset_timeout != 0) {
+    if (nfds == 0)
+    {
+      if (reset_timeout != 0)
+      {
         timeout = user_timeout;
         reset_timeout = 0;
         if (timeout == -1)
@@ -235,11 +258,13 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       return;
     }
 
-    if (nfds == -1) {
+    if (nfds == -1)
+    {
       if (errno != EINTR)
         abort();
 
-      if (reset_timeout != 0) {
+      if (reset_timeout != 0)
+      {
         timeout = user_timeout;
         reset_timeout = 0;
       }
@@ -264,7 +289,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     have_signals = 0;
 
     /* Loop over the entire poll fds array looking for returned events.  */
-    for (i = 0; i < loop->poll_fds_used; i++) {
+    for (i = 0; i < loop->poll_fds_used; i++)
+    {
       pe = loop->poll_fds + i;
       fd = pe->fd;
 
@@ -273,11 +299,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         continue;
 
       assert(fd >= 0);
-      assert((unsigned) fd < loop->nwatchers);
+      assert((unsigned)fd < loop->nwatchers);
 
       w = loop->watchers[fd];
 
-      if (w == NULL) {
+      if (w == NULL)
+      {
         /* File descriptor that we've stopped watching, ignore.  */
         uv__platform_invalidate_fd(loop, fd);
         continue;
@@ -288,11 +315,15 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
        */
       pe->revents &= w->pevents | POLLERR | POLLHUP;
 
-      if (pe->revents != 0) {
+      if (pe->revents != 0)
+      {
         /* Run signal watchers last.  */
-        if (w == &loop->signal_io_watcher) {
+        if (w == &loop->signal_io_watcher)
+        {
           have_signals = 1;
-        } else {
+        }
+        else
+        {
           uv__metrics_update_idle_time(loop);
           w->cb(loop, w, pe->revents);
         }
@@ -302,13 +333,15 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     }
 
     uv__metrics_inc_events(loop, nevents);
-    if (reset_timeout != 0) {
+    if (reset_timeout != 0)
+    {
       timeout = user_timeout;
       reset_timeout = 0;
       uv__metrics_inc_events_waiting(loop, nevents);
     }
 
-    if (have_signals != 0) {
+    if (have_signals != 0)
+    {
       uv__metrics_update_idle_time(loop);
       loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
     }
@@ -319,7 +352,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     uv__pollfds_del(loop, -1);
 
     if (have_signals != 0)
-      return;  /* Event loop should cycle now so don't poll again. */
+      return; /* Event loop should cycle now so don't poll again. */
 
     if (nevents != 0)
       return;
@@ -330,11 +363,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     if (timeout == -1)
       continue;
 
-update_timeout:
+  update_timeout:
     assert(timeout > 0);
 
     time_diff = loop->time - time_base;
-    if (time_diff >= (uint64_t) timeout)
+    if (time_diff >= (uint64_t)timeout)
       return;
 
     timeout -= time_diff;
@@ -344,27 +377,33 @@ update_timeout:
 /* Remove the given fd from our poll fds array because no one
  * is interested in its events anymore.
  */
-void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
+void uv__platform_invalidate_fd(uv_loop_t *loop, int fd)
+{
   size_t i;
 
   assert(fd >= 0);
 
-  if (loop->poll_fds_iterating) {
+  if (loop->poll_fds_iterating)
+  {
     /* uv__io_poll is currently iterating.  Just invalidate fd.  */
     for (i = 0; i < loop->poll_fds_used; i++)
-      if (loop->poll_fds[i].fd == fd) {
+      if (loop->poll_fds[i].fd == fd)
+      {
         loop->poll_fds[i].fd = -1;
         loop->poll_fds[i].events = 0;
         loop->poll_fds[i].revents = 0;
       }
-  } else {
+  }
+  else
+  {
     /* uv__io_poll is not iterating.  Delete fd from the set.  */
     uv__pollfds_del(loop, fd);
   }
 }
 
 /* Check whether the given fd is supported by poll().  */
-int uv__io_check_fd(uv_loop_t* loop, int fd) {
+int uv__io_check_fd(uv_loop_t *loop, int fd)
+{
   struct pollfd p[1];
   int rv;
 

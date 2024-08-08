@@ -35,7 +35,8 @@
 #include <ifaddrs.h>
 #endif
 
-static int maybe_bind_socket(int fd) {
+static int maybe_bind_socket(int fd)
+{
   union uv__sockaddr s;
   socklen_t slen;
 
@@ -47,11 +48,11 @@ static int maybe_bind_socket(int fd) {
 
   if (s.addr.sa_family == AF_INET)
     if (s.in.sin_port != 0)
-      return 0;  /* Already bound to a port. */
+      return 0; /* Already bound to a port. */
 
   if (s.addr.sa_family == AF_INET6)
     if (s.in6.sin6_port != 0)
-      return 0;  /* Already bound to a port. */
+      return 0; /* Already bound to a port. */
 
   /* Bind to an arbitrary port. */
   if (bind(fd, &s.addr, slen))
@@ -60,8 +61,8 @@ static int maybe_bind_socket(int fd) {
   return 0;
 }
 
-
-static int new_socket(uv_tcp_t* handle, int domain, unsigned int flags) {
+static int new_socket(uv_tcp_t *handle, int domain, unsigned int flags)
+{
   int sockfd;
   int err;
 
@@ -69,8 +70,9 @@ static int new_socket(uv_tcp_t* handle, int domain, unsigned int flags) {
   if (sockfd < 0)
     return sockfd;
 
-  err = uv__stream_open((uv_stream_t*) handle, sockfd, flags);
-  if (err) {
+  err = uv__stream_open((uv_stream_t *)handle, sockfd, flags);
+  if (err)
+  {
     uv__close(sockfd);
     return err;
   }
@@ -81,8 +83,8 @@ static int new_socket(uv_tcp_t* handle, int domain, unsigned int flags) {
   return 0;
 }
 
-
-static int maybe_new_socket(uv_tcp_t* handle, int domain, unsigned int flags) {
+static int maybe_new_socket(uv_tcp_t *handle, int domain, unsigned int flags)
+{
   int sockfd;
   int err;
 
@@ -97,7 +99,7 @@ static int maybe_new_socket(uv_tcp_t* handle, int domain, unsigned int flags) {
     goto out;
 
   if (handle->flags & UV_HANDLE_BOUND)
-    goto out;  /* Already bound to a port. */
+    goto out; /* Already bound to a port. */
 
   err = maybe_bind_socket(sockfd);
   if (err)
@@ -109,8 +111,8 @@ out:
   return 0;
 }
 
-
-int uv_tcp_init_ex(uv_loop_t* loop, uv_tcp_t* tcp, unsigned int flags) {
+int uv_tcp_init_ex(uv_loop_t *loop, uv_tcp_t *tcp, unsigned int flags)
+{
   int domain;
   int err;
 
@@ -122,15 +124,17 @@ int uv_tcp_init_ex(uv_loop_t* loop, uv_tcp_t* tcp, unsigned int flags) {
   if (flags & ~0xFF)
     return UV_EINVAL;
 
-  uv__stream_init(loop, (uv_stream_t*)tcp, UV_TCP);
+  uv__stream_init(loop, (uv_stream_t *)tcp, UV_TCP);
 
   /* If anything fails beyond this point we need to remove the handle from
    * the handle queue, since it was added by uv__handle_init in uv_stream_init.
    */
 
-  if (domain != AF_UNSPEC) {
+  if (domain != AF_UNSPEC)
+  {
     err = new_socket(tcp, domain, 0);
-    if (err) {
+    if (err)
+    {
       uv__queue_remove(&tcp->handle_queue);
       if (tcp->io_watcher.fd != -1)
         uv__close(tcp->io_watcher.fd);
@@ -142,16 +146,16 @@ int uv_tcp_init_ex(uv_loop_t* loop, uv_tcp_t* tcp, unsigned int flags) {
   return 0;
 }
 
-
-int uv_tcp_init(uv_loop_t* loop, uv_tcp_t* tcp) {
+int uv_tcp_init(uv_loop_t *loop, uv_tcp_t *tcp)
+{
   return uv_tcp_init_ex(loop, tcp, AF_UNSPEC);
 }
 
-
-int uv__tcp_bind(uv_tcp_t* tcp,
-                 const struct sockaddr* addr,
+int uv__tcp_bind(uv_tcp_t *tcp,
+                 const struct sockaddr *addr,
                  unsigned int addrlen,
-                 unsigned int flags) {
+                 unsigned int flags)
+{
   int err;
   int on;
 
@@ -167,7 +171,8 @@ int uv__tcp_bind(uv_tcp_t* tcp,
   if (setsockopt(tcp->io_watcher.fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)))
     return UV__ERR(errno);
 
-  if (flags & UV_TCP_REUSEPORT) {
+  if (flags & UV_TCP_REUSEPORT)
+  {
     err = uv__sock_reuseport(tcp->io_watcher.fd);
     if (err)
       return err;
@@ -175,13 +180,15 @@ int uv__tcp_bind(uv_tcp_t* tcp,
 
 #ifndef __OpenBSD__
 #ifdef IPV6_V6ONLY
-  if (addr->sa_family == AF_INET6) {
+  if (addr->sa_family == AF_INET6)
+  {
     on = (flags & UV_TCP_IPV6ONLY) != 0;
     if (setsockopt(tcp->io_watcher.fd,
                    IPPROTO_IPV6,
                    IPV6_V6ONLY,
                    &on,
-                   sizeof on) == -1) {
+                   sizeof on) == -1)
+    {
 #if defined(__MVS__)
       if (errno == EOPNOTSUPP)
         return UV_EINVAL;
@@ -194,7 +201,8 @@ int uv__tcp_bind(uv_tcp_t* tcp,
 
   errno = 0;
   err = bind(tcp->io_watcher.fd, addr, addrlen);
-  if (err == -1 && errno != EADDRINUSE) {
+  if (err == -1 && errno != EADDRINUSE)
+  {
     if (errno == EAFNOSUPPORT)
       /* OSX, other BSDs and SunoS fail with EAFNOSUPPORT when binding a
        * socket created with AF_INET to an AF_INET6 address or vice versa. */
@@ -210,29 +218,29 @@ int uv__tcp_bind(uv_tcp_t* tcp,
   return 0;
 }
 
-
-static int uv__is_ipv6_link_local(const struct sockaddr* addr) {
-  const struct sockaddr_in6* a6;
+static int uv__is_ipv6_link_local(const struct sockaddr *addr)
+{
+  const struct sockaddr_in6 *a6;
   uint8_t b[2];
 
   if (addr->sa_family != AF_INET6)
     return 0;
 
-  a6 = (const struct sockaddr_in6*) addr;
+  a6 = (const struct sockaddr_in6 *)addr;
   memcpy(b, &a6->sin6_addr, sizeof(b));
 
   return b[0] == 0xFE && b[1] == 0x80;
 }
 
-
-static int uv__ipv6_link_local_scope_id(void) {
-  struct sockaddr_in6* a6;
+static int uv__ipv6_link_local_scope_id(void)
+{
+  struct sockaddr_in6 *a6;
   int rv;
 #if defined(_AIX)
   /* AIX & IBM i do not have ifaddrs
    * so fallback to use uv_interface_addresses */
-  uv_interface_address_t* interfaces;
-  uv_interface_address_t* ifa;
+  uv_interface_address_t *interfaces;
+  uv_interface_address_t *ifa;
   int count, i;
 
   if (uv_interface_addresses(&interfaces, &count))
@@ -240,8 +248,10 @@ static int uv__ipv6_link_local_scope_id(void) {
 
   rv = 0;
 
-  for (ifa = interfaces; ifa != &interfaces[count]; ifa++) {
-    if (uv__is_ipv6_link_local((struct sockaddr*) &ifa->address)) {
+  for (ifa = interfaces; ifa != &interfaces[count]; ifa++)
+  {
+    if (uv__is_ipv6_link_local((struct sockaddr *)&ifa->address))
+    {
       rv = ifa->address.address6.sin6_scope_id;
       break;
     }
@@ -250,8 +260,8 @@ static int uv__ipv6_link_local_scope_id(void) {
   uv_free_interface_addresses(interfaces, count);
 
 #else
-  struct ifaddrs* ifa;
-  struct ifaddrs* p;
+  struct ifaddrs *ifa;
+  struct ifaddrs *p;
 
   if (getifaddrs(&ifa))
     return 0;
@@ -262,8 +272,9 @@ static int uv__ipv6_link_local_scope_id(void) {
         break;
 
   rv = 0;
-  if (p != NULL) {
-    a6 = (struct sockaddr_in6*) p->ifa_addr;
+  if (p != NULL)
+  {
+    a6 = (struct sockaddr_in6 *)p->ifa_addr;
     rv = a6->sin6_scope_id;
   }
 
@@ -273,12 +284,12 @@ static int uv__ipv6_link_local_scope_id(void) {
   return rv;
 }
 
-
-int uv__tcp_connect(uv_connect_t* req,
-                    uv_tcp_t* handle,
-                    const struct sockaddr* addr,
+int uv__tcp_connect(uv_connect_t *req,
+                    uv_tcp_t *handle,
+                    const struct sockaddr *addr,
                     unsigned int addrlen,
-                    uv_connect_cb cb) {
+                    uv_connect_cb cb)
+{
   struct sockaddr_in6 tmp6;
   int err;
   int r;
@@ -286,7 +297,7 @@ int uv__tcp_connect(uv_connect_t* req,
   assert(handle->type == UV_TCP);
 
   if (handle->connect_req != NULL)
-    return UV_EALREADY;  /* FIXME(bnoordhuis) UV_EINVAL or maybe UV_EBUSY. */
+    return UV_EALREADY; /* FIXME(bnoordhuis) UV_EINVAL or maybe UV_EBUSY. */
 
   if (handle->delayed_error != 0)
     goto out;
@@ -297,15 +308,18 @@ int uv__tcp_connect(uv_connect_t* req,
   if (err)
     return err;
 
-  if (uv__is_ipv6_link_local(addr)) {
+  if (uv__is_ipv6_link_local(addr))
+  {
     memcpy(&tmp6, addr, sizeof(tmp6));
-    if (tmp6.sin6_scope_id == 0) {
+    if (tmp6.sin6_scope_id == 0)
+    {
       tmp6.sin6_scope_id = uv__ipv6_link_local_scope_id();
-      addr = (void*) &tmp6;
+      addr = (void *)&tmp6;
     }
   }
 
-  do {
+  do
+  {
     errno = 0;
     r = connect(uv__stream_fd(handle), addr, addrlen);
   } while (r == -1 && errno == EINTR);
@@ -315,18 +329,19 @@ int uv__tcp_connect(uv_connect_t* req,
    * is 0 (for example, on Android 4.3, OnePlus phone A0001_12_150227)
    * and actually the tcp three-way handshake is completed.
    */
-  if (r == -1 && errno != 0) {
+  if (r == -1 && errno != 0)
+  {
     if (errno == EINPROGRESS)
       ; /* not an error */
     else if (errno == ECONNREFUSED
 #if defined(__OpenBSD__)
-      || errno == EINVAL
+             || errno == EINVAL
 #endif
-      )
-    /* If we get ECONNREFUSED (Solaris) or EINVAL (OpenBSD) wait until the
-     * next tick to report the error. Solaris and OpenBSD wants to report
-     * immediately -- other unixes want to wait.
-     */
+    )
+      /* If we get ECONNREFUSED (Solaris) or EINVAL (OpenBSD) wait until the
+       * next tick to report the error. Solaris and OpenBSD wants to report
+       * immediately -- other unixes want to wait.
+       */
       handle->delayed_error = UV__ERR(ECONNREFUSED);
     else
       return UV__ERR(errno);
@@ -336,7 +351,7 @@ out:
 
   uv__req_init(handle->loop, req, UV_CONNECT);
   req->cb = cb;
-  req->handle = (uv_stream_t*) handle;
+  req->handle = (uv_stream_t *)handle;
   uv__queue_init(&req->queue);
   handle->connect_req = req;
 
@@ -348,8 +363,8 @@ out:
   return 0;
 }
 
-
-int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock) {
+int uv_tcp_open(uv_tcp_t *handle, uv_os_sock_t sock)
+{
   int err;
 
   if (uv__fd_exists(handle->loop, sock))
@@ -359,66 +374,70 @@ int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock) {
   if (err)
     return err;
 
-  return uv__stream_open((uv_stream_t*)handle,
+  return uv__stream_open((uv_stream_t *)handle,
                          sock,
                          UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
 }
 
-
-int uv_tcp_getsockname(const uv_tcp_t* handle,
-                       struct sockaddr* name,
-                       int* namelen) {
+int uv_tcp_getsockname(const uv_tcp_t *handle,
+                       struct sockaddr *name,
+                       int *namelen)
+{
 
   if (handle->delayed_error)
     return handle->delayed_error;
 
-  return uv__getsockpeername((const uv_handle_t*) handle,
+  return uv__getsockpeername((const uv_handle_t *)handle,
                              getsockname,
                              name,
                              namelen);
 }
 
-
-int uv_tcp_getpeername(const uv_tcp_t* handle,
-                       struct sockaddr* name,
-                       int* namelen) {
+int uv_tcp_getpeername(const uv_tcp_t *handle,
+                       struct sockaddr *name,
+                       int *namelen)
+{
 
   if (handle->delayed_error)
     return handle->delayed_error;
 
-  return uv__getsockpeername((const uv_handle_t*) handle,
+  return uv__getsockpeername((const uv_handle_t *)handle,
                              getpeername,
                              name,
                              namelen);
 }
 
-
-int uv_tcp_close_reset(uv_tcp_t* handle, uv_close_cb close_cb) {
+int uv_tcp_close_reset(uv_tcp_t *handle, uv_close_cb close_cb)
+{
   int fd;
-  struct linger l = { 1, 0 };
+  struct linger l = {1, 0};
 
   /* Disallow setting SO_LINGER to zero due to some platform inconsistencies */
   if (uv__is_stream_shutting(handle))
     return UV_EINVAL;
 
   fd = uv__stream_fd(handle);
-  if (0 != setsockopt(fd, SOL_SOCKET, SO_LINGER, &l, sizeof(l))) {
-    if (errno == EINVAL) {
+  if (0 != setsockopt(fd, SOL_SOCKET, SO_LINGER, &l, sizeof(l)))
+  {
+    if (errno == EINVAL)
+    {
       /* Open Group Specifications Issue 7, 2018 edition states that
        * EINVAL may mean the socket has been shut down already.
        * Behavior observed on Solaris, illumos and macOS. */
       errno = 0;
-    } else {
+    }
+    else
+    {
       return UV__ERR(errno);
     }
   }
 
-  uv_close((uv_handle_t*) handle, close_cb);
+  uv_close((uv_handle_t *)handle, close_cb);
   return 0;
 }
 
-
-int uv__tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
+int uv__tcp_listen(uv_tcp_t *tcp, int backlog, uv_connection_cb cb)
+{
   unsigned int flags;
   int err;
 
@@ -450,13 +469,12 @@ int uv__tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
   return 0;
 }
 
-
-int uv__tcp_nodelay(int fd, int on) {
+int uv__tcp_nodelay(int fd, int on)
+{
   if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)))
     return UV__ERR(errno);
   return 0;
 }
-
 
 #if (defined(UV__SOLARIS_11_4) && !UV__SOLARIS_11_4) || \
     (defined(__DragonFly__) && __DragonFly_version < 500702)
@@ -466,14 +484,15 @@ int uv__tcp_nodelay(int fd, int on) {
 #else
 #define UV_KEEPALIVE_FACTOR(x)
 #endif
-int uv__tcp_keepalive(int fd, int on, unsigned int delay) {
+int uv__tcp_keepalive(int fd, int on, unsigned int delay)
+{
   int idle;
   int intvl;
   int cnt;
 
-  (void) &idle;
-  (void) &intvl;
-  (void) &cnt;
+  (void)&idle;
+  (void)&intvl;
+  (void)&cnt;
 
   if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)))
     return UV__ERR(errno);
@@ -512,8 +531,8 @@ int uv__tcp_keepalive(int fd, int on, unsigned int delay) {
   if (idle < 10)
     idle = 10;
   /* Kernel expects at most 10 days. */
-  if (idle > 10*24*60*60)
-    idle = 10*24*60*60;
+  if (idle > 10 * 24 * 60 * 60)
+    idle = 10 * 24 * 60 * 60;
 
   UV_KEEPALIVE_FACTOR(idle);
 
@@ -546,7 +565,7 @@ int uv__tcp_keepalive(int fd, int on, unsigned int delay) {
     return UV__ERR(errno);
 #endif
 
-#else  /* !defined(__sun) */
+#else /* !defined(__sun) */
 
   idle = delay;
   UV_KEEPALIVE_FACTOR(idle);
@@ -560,27 +579,28 @@ int uv__tcp_keepalive(int fd, int on, unsigned int delay) {
 #endif
 
 #ifdef TCP_KEEPINTVL
-  intvl = 1;  /* 1 second; same as default on Win32 */
+  intvl = 1; /* 1 second; same as default on Win32 */
   UV_KEEPALIVE_FACTOR(intvl);
   if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
     return UV__ERR(errno);
 #endif
 
 #ifdef TCP_KEEPCNT
-  cnt = 10;  /* 10 retries; same as hardcoded on Win32 */
+  cnt = 10; /* 10 retries; same as hardcoded on Win32 */
   if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)))
     return UV__ERR(errno);
 #endif
 
-#endif  /* !defined(__sun) */
+#endif /* !defined(__sun) */
   return 0;
 }
 
-
-int uv_tcp_nodelay(uv_tcp_t* handle, int on) {
+int uv_tcp_nodelay(uv_tcp_t *handle, int on)
+{
   int err;
 
-  if (uv__stream_fd(handle) != -1) {
+  if (uv__stream_fd(handle) != -1)
+  {
     err = uv__tcp_nodelay(uv__stream_fd(handle), on);
     if (err)
       return err;
@@ -594,12 +614,13 @@ int uv_tcp_nodelay(uv_tcp_t* handle, int on) {
   return 0;
 }
 
-
-int uv_tcp_keepalive(uv_tcp_t* handle, int on, unsigned int delay) {
+int uv_tcp_keepalive(uv_tcp_t *handle, int on, unsigned int delay)
+{
   int err;
 
-  if (uv__stream_fd(handle) != -1) {
-    err =uv__tcp_keepalive(uv__stream_fd(handle), on, delay);
+  if (uv__stream_fd(handle) != -1)
+  {
+    err = uv__tcp_keepalive(uv__stream_fd(handle), on, delay);
     if (err)
       return err;
   }
@@ -616,18 +637,18 @@ int uv_tcp_keepalive(uv_tcp_t* handle, int on, unsigned int delay) {
   return 0;
 }
 
-
-int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable) {
+int uv_tcp_simultaneous_accepts(uv_tcp_t *handle, int enable)
+{
   return 0;
 }
 
-
-void uv__tcp_close(uv_tcp_t* handle) {
-  uv__stream_close((uv_stream_t*)handle);
+void uv__tcp_close(uv_tcp_t *handle)
+{
+  uv__stream_close((uv_stream_t *)handle);
 }
 
-
-int uv_socketpair(int type, int protocol, uv_os_sock_t fds[2], int flags0, int flags1) {
+int uv_socketpair(int type, int protocol, uv_os_sock_t fds[2], int flags0, int flags1)
+{
   uv_os_sock_t temp[2];
   int err;
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
@@ -640,7 +661,8 @@ int uv_socketpair(int type, int protocol, uv_os_sock_t fds[2], int flags0, int f
   if (socketpair(AF_UNIX, flags, protocol, temp))
     return UV__ERR(errno);
 
-  if (flags & UV_FS_O_NONBLOCK) {
+  if (flags & UV_FS_O_NONBLOCK)
+  {
     fds[0] = temp[0];
     fds[1] = temp[1];
     return 0;
@@ -657,7 +679,7 @@ int uv_socketpair(int type, int protocol, uv_os_sock_t fds[2], int flags0, int f
 
   if (flags0 & UV_NONBLOCK_PIPE)
     if ((err = uv__nonblock(temp[0], 1)))
-        goto fail;
+      goto fail;
   if (flags1 & UV_NONBLOCK_PIPE)
     if ((err = uv__nonblock(temp[1], 1)))
       goto fail;

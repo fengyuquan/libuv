@@ -29,7 +29,7 @@
 #include <errno.h>
 
 #ifndef SUNOS_NO_IFADDRS
-# include <ifaddrs.h>
+#include <ifaddrs.h>
 #endif
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -63,8 +63,8 @@
 #define _FILE_OFFSET_BITS 64
 #endif
 
-
-int uv__platform_loop_init(uv_loop_t* loop) {
+int uv__platform_loop_init(uv_loop_t *loop)
+{
   int err;
   int fd;
 
@@ -76,7 +76,8 @@ int uv__platform_loop_init(uv_loop_t* loop) {
     return UV__ERR(errno);
 
   err = uv__cloexec(fd, 1);
-  if (err) {
+  if (err)
+  {
     uv__close(fd);
     return err;
   }
@@ -85,23 +86,26 @@ int uv__platform_loop_init(uv_loop_t* loop) {
   return 0;
 }
 
-
-void uv__platform_loop_delete(uv_loop_t* loop) {
-  if (loop->fs_fd != -1) {
+void uv__platform_loop_delete(uv_loop_t *loop)
+{
+  if (loop->fs_fd != -1)
+  {
     uv__close(loop->fs_fd);
     loop->fs_fd = -1;
   }
 
-  if (loop->backend_fd != -1) {
+  if (loop->backend_fd != -1)
+  {
     uv__close(loop->backend_fd);
     loop->backend_fd = -1;
   }
 }
 
-
-int uv__io_fork(uv_loop_t* loop) {
+int uv__io_fork(uv_loop_t *loop)
+{
 #if defined(PORT_SOURCE_FILE)
-  if (loop->fs_fd != -1) {
+  if (loop->fs_fd != -1)
+  {
     /* stop the watcher before we blow away its fileno */
     uv__io_stop(loop, &loop->fs_event_watcher, POLLIN);
   }
@@ -110,32 +114,33 @@ int uv__io_fork(uv_loop_t* loop) {
   return uv__platform_loop_init(loop);
 }
 
-
-void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
-  struct port_event* events;
+void uv__platform_invalidate_fd(uv_loop_t *loop, int fd)
+{
+  struct port_event *events;
   uintptr_t i;
   uintptr_t nfds;
 
   assert(loop->watchers != NULL);
   assert(fd >= 0);
 
-  events = (struct port_event*) loop->watchers[loop->nwatchers];
-  nfds = (uintptr_t) loop->watchers[loop->nwatchers + 1];
+  events = (struct port_event *)loop->watchers[loop->nwatchers];
+  nfds = (uintptr_t)loop->watchers[loop->nwatchers + 1];
   if (events == NULL)
     return;
 
   /* Invalidate events with same file descriptor */
   for (i = 0; i < nfds; i++)
-    if ((int) events[i].portev_object == fd)
+    if ((int)events[i].portev_object == fd)
       events[i].portev_object = -1;
 }
 
-
-int uv__io_check_fd(uv_loop_t* loop, int fd) {
+int uv__io_check_fd(uv_loop_t *loop, int fd)
+{
   if (port_associate(loop->backend_fd, PORT_SOURCE_FD, fd, POLLIN, 0))
     return UV__ERR(errno);
 
-  if (port_dissociate(loop->backend_fd, PORT_SOURCE_FD, fd)) {
+  if (port_dissociate(loop->backend_fd, PORT_SOURCE_FD, fd))
+  {
     perror("(libuv) port_dissociate()");
     abort();
   }
@@ -143,14 +148,14 @@ int uv__io_check_fd(uv_loop_t* loop, int fd) {
   return 0;
 }
 
-
-void uv__io_poll(uv_loop_t* loop, int timeout) {
+void uv__io_poll(uv_loop_t *loop, int timeout)
+{
   struct port_event events[1024];
-  struct port_event* pe;
+  struct port_event *pe;
   struct timespec spec;
-  struct uv__queue* q;
-  uv__io_t* w;
-  sigset_t* pset;
+  struct uv__queue *q;
+  uv__io_t *w;
+  sigset_t *pset;
   sigset_t set;
   uint64_t base;
   uint64_t diff;
@@ -165,12 +170,14 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int user_timeout;
   int reset_timeout;
 
-  if (loop->nfds == 0) {
+  if (loop->nfds == 0)
+  {
     assert(uv__queue_empty(&loop->watcher_queue));
     return;
   }
 
-  while (!uv__queue_empty(&loop->watcher_queue)) {
+  while (!uv__queue_empty(&loop->watcher_queue))
+  {
     q = uv__queue_head(&loop->watcher_queue);
     uv__queue_remove(q);
     uv__queue_init(q);
@@ -182,7 +189,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
                        PORT_SOURCE_FD,
                        w->fd,
                        w->pevents,
-                       0)) {
+                       0))
+    {
       perror("(libuv) port_associate()");
       abort();
     }
@@ -191,7 +199,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   }
 
   pset = NULL;
-  if (loop->flags & UV_LOOP_BLOCK_SIGPROF) {
+  if (loop->flags & UV_LOOP_BLOCK_SIGPROF)
+  {
     pset = &set;
     sigemptyset(pset);
     sigaddset(pset, SIGPROF);
@@ -201,22 +210,27 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   base = loop->time;
   count = 48; /* Benchmarks suggest this gives the best throughput. */
 
-  if (uv__get_internal_fields(loop)->flags & UV_METRICS_IDLE_TIME) {
+  if (uv__get_internal_fields(loop)->flags & UV_METRICS_IDLE_TIME)
+  {
     reset_timeout = 1;
     user_timeout = timeout;
     timeout = 0;
-  } else {
+  }
+  else
+  {
     reset_timeout = 0;
   }
 
-  for (;;) {
+  for (;;)
+  {
     /* Only need to set the provider_entry_time if timeout != 0. The function
      * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
      */
     if (timeout != 0)
       uv__metrics_set_provider_entry_time(loop);
 
-    if (timeout != -1) {
+    if (timeout != -1)
+    {
       spec.tv_sec = timeout / 1000;
       spec.tv_nsec = (timeout % 1000) * 1000000;
     }
@@ -239,13 +253,17 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     if (pset != NULL)
       pthread_sigmask(SIG_UNBLOCK, pset, NULL);
 
-    if (err) {
+    if (err)
+    {
       /* Work around another kernel bug: port_getn() may return events even
        * on error.
        */
-      if (errno == EINTR || errno == ETIME) {
+      if (errno == EINTR || errno == ETIME)
+      {
         saved_errno = errno;
-      } else {
+      }
+      else
+      {
         perror("(libuv) port_getn()");
         abort();
       }
@@ -257,8 +275,10 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
      */
     SAVE_ERRNO(uv__update_time(loop));
 
-    if (events[0].portev_source == 0) {
-      if (reset_timeout != 0) {
+    if (events[0].portev_source == 0)
+    {
+      if (reset_timeout != 0)
+      {
         timeout = user_timeout;
         reset_timeout = 0;
       }
@@ -272,7 +292,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       goto update_timeout;
     }
 
-    if (nfds == 0) {
+    if (nfds == 0)
+    {
       assert(timeout != -1);
       return;
     }
@@ -281,9 +302,10 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     nevents = 0;
 
     assert(loop->watchers != NULL);
-    loop->watchers[loop->nwatchers] = (void*) events;
-    loop->watchers[loop->nwatchers + 1] = (void*) (uintptr_t) nfds;
-    for (i = 0; i < nfds; i++) {
+    loop->watchers[loop->nwatchers] = (void *)events;
+    loop->watchers[loop->nwatchers + 1] = (void *)(uintptr_t)nfds;
+    for (i = 0; i < nfds; i++)
+    {
       pe = events + i;
       fd = pe->portev_object;
 
@@ -292,7 +314,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         continue;
 
       assert(fd >= 0);
-      assert((unsigned) fd < loop->nwatchers);
+      assert((unsigned)fd < loop->nwatchers);
 
       w = loop->watchers[fd];
 
@@ -303,9 +325,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       /* Run signal watchers last.  This also affects child process watchers
        * because those are implemented in terms of signal watchers.
        */
-      if (w == &loop->signal_io_watcher) {
+      if (w == &loop->signal_io_watcher)
+      {
         have_signals = 1;
-      } else {
+      }
+      else
+      {
         uv__metrics_update_idle_time(loop);
         w->cb(loop, w, pe->portev_events);
       }
@@ -313,7 +338,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       nevents++;
 
       if (w != loop->watchers[fd])
-        continue;  /* Disabled by callback. */
+        continue; /* Disabled by callback. */
 
       /* Events Ports operates in oneshot mode, rearm timer on next run. */
       if (w->pevents != 0 && uv__queue_empty(&w->watcher_queue))
@@ -321,13 +346,15 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     }
 
     uv__metrics_inc_events(loop, nevents);
-    if (reset_timeout != 0) {
+    if (reset_timeout != 0)
+    {
       timeout = user_timeout;
       reset_timeout = 0;
       uv__metrics_inc_events_waiting(loop, nevents);
     }
 
-    if (have_signals != 0) {
+    if (have_signals != 0)
+    {
       uv__metrics_update_idle_time(loop);
       loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
     }
@@ -336,10 +363,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     loop->watchers[loop->nwatchers + 1] = NULL;
 
     if (have_signals != 0)
-      return;  /* Event loop should cycle now so don't poll again. */
+      return; /* Event loop should cycle now so don't poll again. */
 
-    if (nevents != 0) {
-      if (nfds == ARRAY_SIZE(events) && --count != 0) {
+    if (nevents != 0)
+    {
+      if (nfds == ARRAY_SIZE(events) && --count != 0)
+      {
         /* Poll for more events but don't block this time. */
         timeout = 0;
         continue;
@@ -347,7 +376,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       return;
     }
 
-    if (saved_errno == ETIME) {
+    if (saved_errno == ETIME)
+    {
       assert(timeout != -1);
       return;
     }
@@ -358,36 +388,36 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     if (timeout == -1)
       continue;
 
-update_timeout:
+  update_timeout:
     assert(timeout > 0);
 
     diff = loop->time - base;
-    if (diff >= (uint64_t) timeout)
+    if (diff >= (uint64_t)timeout)
       return;
 
     timeout -= diff;
   }
 }
 
-
-uint64_t uv__hrtime(uv_clocktype_t type) {
+uint64_t uv__hrtime(uv_clocktype_t type)
+{
   return gethrtime();
 }
-
 
 /*
  * We could use a static buffer for the path manipulations that we need outside
  * of the function, but this function could be called by multiple consumers and
  * we don't want to potentially create a race condition in the use of snprintf.
  */
-int uv_exepath(char* buffer, size_t* size) {
+int uv_exepath(char *buffer, size_t *size)
+{
   ssize_t res;
   char buf[128];
 
   if (buffer == NULL || size == NULL || *size == 0)
     return UV_EINVAL;
 
-  snprintf(buf, sizeof(buf), "/proc/%lu/path/a.out", (unsigned long) getpid());
+  snprintf(buf, sizeof(buf), "/proc/%lu/path/a.out", (unsigned long)getpid());
 
   res = *size - 1;
   if (res > 0)
@@ -401,43 +431,44 @@ int uv_exepath(char* buffer, size_t* size) {
   return 0;
 }
 
-
-uint64_t uv_get_free_memory(void) {
-  return (uint64_t) sysconf(_SC_PAGESIZE) * sysconf(_SC_AVPHYS_PAGES);
+uint64_t uv_get_free_memory(void)
+{
+  return (uint64_t)sysconf(_SC_PAGESIZE) * sysconf(_SC_AVPHYS_PAGES);
 }
 
-
-uint64_t uv_get_total_memory(void) {
-  return (uint64_t) sysconf(_SC_PAGESIZE) * sysconf(_SC_PHYS_PAGES);
+uint64_t uv_get_total_memory(void)
+{
+  return (uint64_t)sysconf(_SC_PAGESIZE) * sysconf(_SC_PHYS_PAGES);
 }
 
-
-uint64_t uv_get_constrained_memory(void) {
-  return 0;  /* Memory constraints are unknown. */
+uint64_t uv_get_constrained_memory(void)
+{
+  return 0; /* Memory constraints are unknown. */
 }
 
-
-uint64_t uv_get_available_memory(void) {
+uint64_t uv_get_available_memory(void)
+{
   return uv_get_free_memory();
 }
 
-
-void uv_loadavg(double avg[3]) {
-  (void) getloadavg(avg, 3);
+void uv_loadavg(double avg[3])
+{
+  (void)getloadavg(avg, 3);
 }
-
 
 #if defined(PORT_SOURCE_FILE)
 
-static int uv__fs_event_rearm(uv_fs_event_t *handle) {
+static int uv__fs_event_rearm(uv_fs_event_t *handle)
+{
   if (handle->fd == PORT_DELETED)
     return UV_EBADF;
 
   if (port_associate(handle->loop->fs_fd,
                      PORT_SOURCE_FILE,
-                     (uintptr_t) &handle->fo,
+                     (uintptr_t)&handle->fo,
                      FILE_ATTRIB | FILE_MODIFIED,
-                     handle) == -1) {
+                     handle) == -1)
+  {
     return UV__ERR(errno);
   }
   handle->fd = PORT_LOADED;
@@ -445,20 +476,21 @@ static int uv__fs_event_rearm(uv_fs_event_t *handle) {
   return 0;
 }
 
-
-static void uv__fs_event_read(uv_loop_t* loop,
-                              uv__io_t* w,
-                              unsigned int revents) {
+static void uv__fs_event_read(uv_loop_t *loop,
+                              uv__io_t *w,
+                              unsigned int revents)
+{
   uv_fs_event_t *handle = NULL;
   timespec_t timeout;
   port_event_t pe;
   int events;
   int r;
 
-  (void) w;
-  (void) revents;
+  (void)w;
+  (void)revents;
 
-  do {
+  do
+  {
     uint_t n = 1;
 
     /*
@@ -469,21 +501,22 @@ static void uv__fs_event_read(uv_loop_t* loop,
      * we can at least workaround the bug by checking for zero returned events
      * and treating it as we would ETIME.
      */
-    do {
+    do
+    {
       memset(&timeout, 0, sizeof timeout);
       r = port_getn(loop->fs_fd, &pe, 1, &n, &timeout);
-    }
-    while (r == -1 && errno == EINTR);
+    } while (r == -1 && errno == EINTR);
 
     if ((r == -1 && errno == ETIME) || n == 0)
       break;
 
-    handle = (uv_fs_event_t*) pe.portev_user;
+    handle = (uv_fs_event_t *)pe.portev_user;
     assert((r == 0) && "unexpected port_get() error");
 
-    if (uv__is_closing(handle)) {
+    if (uv__is_closing(handle))
+    {
       uv__handle_stop(handle);
-      uv__make_close_pending((uv_handle_t*) handle);
+      uv__make_close_pending((uv_handle_t *)handle);
       break;
     }
 
@@ -496,26 +529,26 @@ static void uv__fs_event_read(uv_loop_t* loop,
     handle->fd = PORT_FIRED;
     handle->cb(handle, NULL, events, 0);
 
-    if (handle->fd != PORT_DELETED) {
+    if (handle->fd != PORT_DELETED)
+    {
       r = uv__fs_event_rearm(handle);
       if (r != 0)
         handle->cb(handle, NULL, 0, r);
     }
-  }
-  while (handle->fd != PORT_DELETED);
+  } while (handle->fd != PORT_DELETED);
 }
 
-
-int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle) {
-  uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
+int uv_fs_event_init(uv_loop_t *loop, uv_fs_event_t *handle)
+{
+  uv__handle_init(loop, (uv_handle_t *)handle, UV_FS_EVENT);
   return 0;
 }
 
-
-int uv_fs_event_start(uv_fs_event_t* handle,
+int uv_fs_event_start(uv_fs_event_t *handle,
                       uv_fs_event_cb cb,
-                      const char* path,
-                      unsigned int flags) {
+                      const char *path,
+                      unsigned int flags)
+{
   int portfd;
   int first_run;
   int err;
@@ -524,7 +557,8 @@ int uv_fs_event_start(uv_fs_event_t* handle,
     return UV_EINVAL;
 
   first_run = 0;
-  if (handle->loop->fs_fd == -1) {
+  if (handle->loop->fs_fd == -1)
+  {
     portfd = port_create();
     if (portfd == -1)
       return UV__ERR(errno);
@@ -540,12 +574,14 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   memset(&handle->fo, 0, sizeof handle->fo);
   handle->fo.fo_name = handle->path;
   err = uv__fs_event_rearm(handle);
-  if (err != 0) {
+  if (err != 0)
+  {
     uv_fs_event_stop(handle);
     return err;
   }
 
-  if (first_run) {
+  if (first_run)
+  {
     uv__io_init(&handle->loop->fs_event_watcher, uv__fs_event_read, portfd);
     uv__io_start(handle->loop, &handle->loop->fs_event_watcher, POLLIN);
   }
@@ -553,17 +589,18 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   return 0;
 }
 
-
-static int uv__fs_event_stop(uv_fs_event_t* handle) {
+static int uv__fs_event_stop(uv_fs_event_t *handle)
+{
   int ret = 0;
 
   if (!uv__is_active(handle))
     return 0;
 
-  if (handle->fd == PORT_LOADED) {
+  if (handle->fd == PORT_LOADED)
+  {
     ret = port_dissociate(handle->loop->fs_fd,
-                    PORT_SOURCE_FILE,
-                    (uintptr_t) &handle->fo);
+                          PORT_SOURCE_FILE,
+                          (uintptr_t)&handle->fo);
   }
 
   handle->fd = PORT_DELETED;
@@ -576,12 +613,14 @@ static int uv__fs_event_stop(uv_fs_event_t* handle) {
   return ret;
 }
 
-int uv_fs_event_stop(uv_fs_event_t* handle) {
-  (void) uv__fs_event_stop(handle);
+int uv_fs_event_stop(uv_fs_event_t *handle)
+{
+  (void)uv__fs_event_stop(handle);
   return 0;
 }
 
-void uv__fs_event_close(uv_fs_event_t* handle) {
+void uv__fs_event_close(uv_fs_event_t *handle)
+{
   /*
    * If we were unable to dissociate the port here, then it is most likely
    * that there is a pending queued event. When this happens, we don't want
@@ -591,37 +630,38 @@ void uv__fs_event_close(uv_fs_event_t* handle) {
    * uv__fs_event_read().
    */
   if (uv__fs_event_stop(handle) == 0)
-    uv__make_close_pending((uv_handle_t*) handle);
+    uv__make_close_pending((uv_handle_t *)handle);
 }
 
 #else /* !defined(PORT_SOURCE_FILE) */
 
-int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle) {
+int uv_fs_event_init(uv_loop_t *loop, uv_fs_event_t *handle)
+{
   return UV_ENOSYS;
 }
 
-
-int uv_fs_event_start(uv_fs_event_t* handle,
+int uv_fs_event_start(uv_fs_event_t *handle,
                       uv_fs_event_cb cb,
-                      const char* filename,
-                      unsigned int flags) {
+                      const char *filename,
+                      unsigned int flags)
+{
   return UV_ENOSYS;
 }
 
-
-int uv_fs_event_stop(uv_fs_event_t* handle) {
+int uv_fs_event_stop(uv_fs_event_t *handle)
+{
   return UV_ENOSYS;
 }
 
-
-void uv__fs_event_close(uv_fs_event_t* handle) {
+void uv__fs_event_close(uv_fs_event_t *handle)
+{
   UNREACHABLE();
 }
 
 #endif /* defined(PORT_SOURCE_FILE) */
 
-
-int uv_resident_set_memory(size_t* rss) {
+int uv_resident_set_memory(size_t *rss)
+{
   psinfo_t psinfo;
   int err;
   int fd;
@@ -632,7 +672,8 @@ int uv_resident_set_memory(size_t* rss) {
 
   /* FIXME(bnoordhuis) Handle EINTR. */
   err = UV_EINVAL;
-  if (read(fd, &psinfo, sizeof(psinfo)) == sizeof(psinfo)) {
+  if (read(fd, &psinfo, sizeof(psinfo)) == sizeof(psinfo))
+  {
     *rss = (size_t)psinfo.pr_rssize * 1024;
     err = 0;
   }
@@ -641,10 +682,10 @@ int uv_resident_set_memory(size_t* rss) {
   return err;
 }
 
-
-int uv_uptime(double* uptime) {
-  kstat_ctl_t   *kc;
-  kstat_t       *ksp;
+int uv_uptime(double *uptime)
+{
+  kstat_ctl_t *kc;
+  kstat_t *ksp;
   kstat_named_t *knp;
 
   long hz = sysconf(_SC_CLK_TCK);
@@ -653,11 +694,14 @@ int uv_uptime(double* uptime) {
   if (kc == NULL)
     return UV_EPERM;
 
-  ksp = kstat_lookup(kc, (char*) "unix", 0, (char*) "system_misc");
-  if (kstat_read(kc, ksp, NULL) == -1) {
+  ksp = kstat_lookup(kc, (char *)"unix", 0, (char *)"system_misc");
+  if (kstat_read(kc, ksp, NULL) == -1)
+  {
     *uptime = -1;
-  } else {
-    knp = (kstat_named_t*)  kstat_data_lookup(ksp, (char*) "clk_intr");
+  }
+  else
+  {
+    knp = (kstat_named_t *)kstat_data_lookup(ksp, (char *)"clk_intr");
     *uptime = knp->value.ul / hz;
   }
   kstat_close(kc);
@@ -665,13 +709,13 @@ int uv_uptime(double* uptime) {
   return 0;
 }
 
-
-int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
-  int           lookup_instance;
-  kstat_ctl_t   *kc;
-  kstat_t       *ksp;
+int uv_cpu_info(uv_cpu_info_t **cpu_infos, int *count)
+{
+  int lookup_instance;
+  kstat_ctl_t *kc;
+  kstat_t *ksp;
   kstat_named_t *knp;
-  uv_cpu_info_t* cpu_info;
+  uv_cpu_info_t *cpu_info;
 
   kc = kstat_open();
   if (kc == NULL)
@@ -679,12 +723,14 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   /* Get count of cpus */
   lookup_instance = 0;
-  while ((ksp = kstat_lookup(kc, (char*) "cpu_info", lookup_instance, NULL))) {
+  while ((ksp = kstat_lookup(kc, (char *)"cpu_info", lookup_instance, NULL)))
+  {
     lookup_instance++;
   }
 
   *cpu_infos = uv__malloc(lookup_instance * sizeof(**cpu_infos));
-  if (!(*cpu_infos)) {
+  if (!(*cpu_infos))
+  {
     kstat_close(kc);
     return UV_ENOMEM;
   }
@@ -693,18 +739,22 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   cpu_info = *cpu_infos;
   lookup_instance = 0;
-  while ((ksp = kstat_lookup(kc, (char*) "cpu_info", lookup_instance, NULL))) {
-    if (kstat_read(kc, ksp, NULL) == -1) {
+  while ((ksp = kstat_lookup(kc, (char *)"cpu_info", lookup_instance, NULL)))
+  {
+    if (kstat_read(kc, ksp, NULL) == -1)
+    {
       cpu_info->speed = 0;
       cpu_info->model = NULL;
-    } else {
-      knp = kstat_data_lookup(ksp, (char*) "clock_MHz");
+    }
+    else
+    {
+      knp = kstat_data_lookup(ksp, (char *)"clock_MHz");
       assert(knp->data_type == KSTAT_DATA_INT32 ||
              knp->data_type == KSTAT_DATA_INT64);
       cpu_info->speed = (knp->data_type == KSTAT_DATA_INT32) ? knp->value.i32
                                                              : knp->value.i64;
 
-      knp = kstat_data_lookup(ksp, (char*) "brand");
+      knp = kstat_data_lookup(ksp, (char *)"brand");
       assert(knp->data_type == KSTAT_DATA_STRING);
       cpu_info->model = uv__strdup(KSTAT_NAMED_STR_PTR(knp));
     }
@@ -715,32 +765,36 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   cpu_info = *cpu_infos;
   lookup_instance = 0;
-  for (;;) {
-    ksp = kstat_lookup(kc, (char*) "cpu", lookup_instance, (char*) "sys");
+  for (;;)
+  {
+    ksp = kstat_lookup(kc, (char *)"cpu", lookup_instance, (char *)"sys");
 
     if (ksp == NULL)
       break;
 
-    if (kstat_read(kc, ksp, NULL) == -1) {
+    if (kstat_read(kc, ksp, NULL) == -1)
+    {
       cpu_info->cpu_times.user = 0;
       cpu_info->cpu_times.nice = 0;
       cpu_info->cpu_times.sys = 0;
       cpu_info->cpu_times.idle = 0;
       cpu_info->cpu_times.irq = 0;
-    } else {
-      knp = kstat_data_lookup(ksp, (char*) "cpu_ticks_user");
+    }
+    else
+    {
+      knp = kstat_data_lookup(ksp, (char *)"cpu_ticks_user");
       assert(knp->data_type == KSTAT_DATA_UINT64);
       cpu_info->cpu_times.user = knp->value.ui64;
 
-      knp = kstat_data_lookup(ksp, (char*) "cpu_ticks_kernel");
+      knp = kstat_data_lookup(ksp, (char *)"cpu_ticks_kernel");
       assert(knp->data_type == KSTAT_DATA_UINT64);
       cpu_info->cpu_times.sys = knp->value.ui64;
 
-      knp = kstat_data_lookup(ksp, (char*) "cpu_ticks_idle");
+      knp = kstat_data_lookup(ksp, (char *)"cpu_ticks_idle");
       assert(knp->data_type == KSTAT_DATA_UINT64);
       cpu_info->cpu_times.idle = knp->value.ui64;
 
-      knp = kstat_data_lookup(ksp, (char*) "intr");
+      knp = kstat_data_lookup(ksp, (char *)"intr");
       assert(knp->data_type == KSTAT_DATA_UINT64);
       cpu_info->cpu_times.irq = knp->value.ui64;
       cpu_info->cpu_times.nice = 0;
@@ -755,9 +809,9 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   return 0;
 }
 
-
 #ifdef SUNOS_NO_IFADDRS
-int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
+int uv_interface_addresses(uv_interface_address_t **addresses, int *count)
+{
   *count = 0;
   *addresses = NULL;
   return UV_ENOSYS;
@@ -768,32 +822,39 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
  * https://blogs.oracle.com/paulie/entry/retrieving_mac_address_in_solaris
  * http://www.pauliesworld.org/project/getmac.c
  */
-static int uv__set_phys_addr(uv_interface_address_t* address,
-                             struct ifaddrs* ent) {
+static int uv__set_phys_addr(uv_interface_address_t *address,
+                             struct ifaddrs *ent)
+{
 
-  struct sockaddr_dl* sa_addr;
+  struct sockaddr_dl *sa_addr;
   int sockfd;
   size_t i;
   struct arpreq arpreq;
 
   /* This appears to only work as root */
-  sa_addr = (struct sockaddr_dl*)(ent->ifa_addr);
+  sa_addr = (struct sockaddr_dl *)(ent->ifa_addr);
   memcpy(address->phys_addr, LLADDR(sa_addr), sizeof(address->phys_addr));
-  for (i = 0; i < sizeof(address->phys_addr); i++) {
+  for (i = 0; i < sizeof(address->phys_addr); i++)
+  {
     /* Check that all bytes of phys_addr are zero. */
     if (address->phys_addr[i] != 0)
       return 0;
   }
   memset(&arpreq, 0, sizeof(arpreq));
-  if (address->address.address4.sin_family == AF_INET) {
-    struct sockaddr_in* sin = ((struct sockaddr_in*)&arpreq.arp_pa);
+  if (address->address.address4.sin_family == AF_INET)
+  {
+    struct sockaddr_in *sin = ((struct sockaddr_in *)&arpreq.arp_pa);
     sin->sin_addr.s_addr = address->address.address4.sin_addr.s_addr;
-  } else if (address->address.address4.sin_family == AF_INET6) {
-    struct sockaddr_in6* sin = ((struct sockaddr_in6*)&arpreq.arp_pa);
+  }
+  else if (address->address.address4.sin_family == AF_INET6)
+  {
+    struct sockaddr_in6 *sin = ((struct sockaddr_in6 *)&arpreq.arp_pa);
     memcpy(sin->sin6_addr.s6_addr,
            address->address.address6.sin6_addr.s6_addr,
            sizeof(address->address.address6.sin6_addr.s6_addr));
-  } else {
+  }
+  else
+  {
     return 0;
   }
 
@@ -801,7 +862,8 @@ static int uv__set_phys_addr(uv_interface_address_t* address,
   if (sockfd < 0)
     return UV__ERR(errno);
 
-  if (ioctl(sockfd, SIOCGARP, (char*)&arpreq) == -1) {
+  if (ioctl(sockfd, SIOCGARP, (char *)&arpreq) == -1)
+  {
     uv__close(sockfd);
     return UV__ERR(errno);
   }
@@ -810,8 +872,8 @@ static int uv__set_phys_addr(uv_interface_address_t* address,
   return 0;
 }
 
-
-static int uv__ifaddr_exclude(struct ifaddrs *ent) {
+static int uv__ifaddr_exclude(struct ifaddrs *ent)
+{
   if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)))
     return 1;
   if (ent->ifa_addr == NULL)
@@ -822,10 +884,11 @@ static int uv__ifaddr_exclude(struct ifaddrs *ent) {
   return 0;
 }
 
-int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
-  uv_interface_address_t* address;
-  struct ifaddrs* addrs;
-  struct ifaddrs* ent;
+int uv_interface_addresses(uv_interface_address_t **addresses, int *count)
+{
+  uv_interface_address_t *address;
+  struct ifaddrs *addrs;
+  struct ifaddrs *ent;
 
   *count = 0;
   *addresses = NULL;
@@ -834,45 +897,55 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     return UV__ERR(errno);
 
   /* Count the number of interfaces */
-  for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
+  for (ent = addrs; ent != NULL; ent = ent->ifa_next)
+  {
     if (uv__ifaddr_exclude(ent))
       continue;
     (*count)++;
   }
 
-  if (*count == 0) {
+  if (*count == 0)
+  {
     freeifaddrs(addrs);
     return 0;
   }
 
   *addresses = uv__malloc(*count * sizeof(**addresses));
-  if (!(*addresses)) {
+  if (!(*addresses))
+  {
     freeifaddrs(addrs);
     return UV_ENOMEM;
   }
 
   address = *addresses;
 
-  for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
+  for (ent = addrs; ent != NULL; ent = ent->ifa_next)
+  {
     if (uv__ifaddr_exclude(ent))
       continue;
 
     address->name = uv__strdup(ent->ifa_name);
 
-    if (ent->ifa_addr->sa_family == AF_INET6) {
-      address->address.address6 = *((struct sockaddr_in6*) ent->ifa_addr);
-    } else {
-      address->address.address4 = *((struct sockaddr_in*) ent->ifa_addr);
+    if (ent->ifa_addr->sa_family == AF_INET6)
+    {
+      address->address.address6 = *((struct sockaddr_in6 *)ent->ifa_addr);
+    }
+    else
+    {
+      address->address.address4 = *((struct sockaddr_in *)ent->ifa_addr);
     }
 
-    if (ent->ifa_netmask->sa_family == AF_INET6) {
-      address->netmask.netmask6 = *((struct sockaddr_in6*) ent->ifa_netmask);
-    } else {
-      address->netmask.netmask4 = *((struct sockaddr_in*) ent->ifa_netmask);
+    if (ent->ifa_netmask->sa_family == AF_INET6)
+    {
+      address->netmask.netmask6 = *((struct sockaddr_in6 *)ent->ifa_netmask);
+    }
+    else
+    {
+      address->netmask.netmask4 = *((struct sockaddr_in *)ent->ifa_netmask);
     }
 
     address->is_internal = !!((ent->ifa_flags & IFF_PRIVATE) ||
-                           (ent->ifa_flags & IFF_LOOPBACK));
+                              (ent->ifa_flags & IFF_LOOPBACK));
 
     uv__set_phys_addr(address, ent);
     address++;
@@ -882,23 +955,25 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 
   return 0;
 }
-#endif  /* SUNOS_NO_IFADDRS */
+#endif /* SUNOS_NO_IFADDRS */
 
-void uv_free_interface_addresses(uv_interface_address_t* addresses,
-  int count) {
+void uv_free_interface_addresses(uv_interface_address_t *addresses,
+                                 int count)
+{
   int i;
 
-  for (i = 0; i < count; i++) {
+  for (i = 0; i < count; i++)
+  {
     uv__free(addresses[i].name);
   }
 
   uv__free(addresses);
 }
 
-
 #if !defined(_POSIX_VERSION) || _POSIX_VERSION < 200809L
-size_t strnlen(const char* s, size_t maxlen) {
-  const char* end;
+size_t strnlen(const char *s, size_t maxlen)
+{
+  const char *end;
   end = memchr(s, '\0', maxlen);
   if (end == NULL)
     return maxlen;

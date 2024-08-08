@@ -27,19 +27,19 @@
 
 static uv_mutex_t process_title_mutex;
 static uv_once_t process_title_mutex_once = UV_ONCE_INIT;
-static char* process_title = NULL;
-static void* args_mem = NULL;
+static char *process_title = NULL;
+static void *args_mem = NULL;
 
-
-static void init_process_title_mutex_once(void) {
+static void init_process_title_mutex_once(void)
+{
   uv_mutex_init(&process_title_mutex);
 }
 
-
-char** uv_setup_args(int argc, char** argv) {
-  char** new_argv;
+char **uv_setup_args(int argc, char **argv)
+{
+  char **new_argv;
   size_t size;
-  char* s;
+  char *s;
   int i;
 
   if (argc <= 0)
@@ -51,15 +51,16 @@ char** uv_setup_args(int argc, char** argv) {
     size += strlen(argv[i]) + 1;
 
   /* Add space for the argv pointers. */
-  size += (argc + 1) * sizeof(char*);
+  size += (argc + 1) * sizeof(char *);
 
   new_argv = uv__malloc(size);
   if (new_argv == NULL)
     return argv;
 
   /* Copy over the strings and set up the pointer table. */
-  s = (char*) &new_argv[argc + 1];
-  for (i = 0; i < argc; i++) {
+  s = (char *)&new_argv[argc + 1];
+  for (i = 0; i < argc; i++)
+  {
     size = strlen(argv[i]) + 1;
     memcpy(s, argv[i], size);
     new_argv[i] = s;
@@ -73,9 +74,9 @@ char** uv_setup_args(int argc, char** argv) {
   return new_argv;
 }
 
-
-int uv_set_process_title(const char* title) {
-  char* new_title;
+int uv_set_process_title(const char *title)
+{
+  char *new_title;
 
   /* If uv_setup_args wasn't called or failed, we can't continue. */
   if (args_mem == NULL)
@@ -101,8 +102,8 @@ int uv_set_process_title(const char* title) {
   return 0;
 }
 
-
-int uv_get_process_title(char* buffer, size_t size) {
+int uv_get_process_title(char *buffer, size_t size)
+{
   size_t len;
 
   if (buffer == NULL || size == 0)
@@ -117,7 +118,8 @@ int uv_get_process_title(char* buffer, size_t size) {
 
   len = strlen(process_title);
 
-  if (size <= len) {
+  if (size <= len)
+  {
     uv_mutex_unlock(&process_title_mutex);
     return UV_ENOBUFS;
   }
@@ -129,8 +131,8 @@ int uv_get_process_title(char* buffer, size_t size) {
   return 0;
 }
 
-
-void uv__process_title_cleanup(void) {
-  uv__free(args_mem);  /* Keep valgrind happy. */
+void uv__process_title_cleanup(void)
+{
+  uv__free(args_mem); /* Keep valgrind happy. */
   args_mem = NULL;
 }

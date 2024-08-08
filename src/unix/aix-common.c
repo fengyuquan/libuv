@@ -35,19 +35,19 @@
 
 #include <ctype.h>
 
-extern char* original_exepath;
+extern char *original_exepath;
 extern uv_mutex_t process_title_mutex;
 extern uv_once_t process_title_mutex_once;
 extern void init_process_title_mutex_once(void);
 
-uint64_t uv__hrtime(uv_clocktype_t type) {
+uint64_t uv__hrtime(uv_clocktype_t type)
+{
   uint64_t G = 1000000000;
   timebasestruct_t t;
   read_wall_time(&t, TIMEBASE_SZ);
   time_base_to_time(&t, TIMEBASE_SZ);
-  return (uint64_t) t.tb_high * G + t.tb_low;
+  return (uint64_t)t.tb_high * G + t.tb_low;
 }
-
 
 /*
  * We could use a static buffer for the path manipulations that we need outside
@@ -57,7 +57,8 @@ uint64_t uv__hrtime(uv_clocktype_t type) {
  * or through some libc APIs. The below approach is to parse the argv[0]'s pattern
  * and use it in conjunction with PATH environment variable to craft one.
  */
-int uv_exepath(char* buffer, size_t* size) {
+int uv_exepath(char *buffer, size_t *size)
+{
   int res;
   char args[UV__PATH_MAX];
   size_t cached_len;
@@ -68,7 +69,8 @@ int uv_exepath(char* buffer, size_t* size) {
 
   uv_once(&process_title_mutex_once, init_process_title_mutex_once);
   uv_mutex_lock(&process_title_mutex);
-  if (original_exepath != NULL) {
+  if (original_exepath != NULL)
+  {
     cached_len = strlen(original_exepath);
     *size -= 1;
     if (*size > cached_len)
