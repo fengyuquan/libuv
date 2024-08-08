@@ -153,6 +153,7 @@ TEST_DECLARE   (tcp_write_to_half_open_connection)
 TEST_DECLARE   (tcp_unexpected_read)
 TEST_DECLARE   (tcp_read_stop)
 TEST_DECLARE   (tcp_read_stop_start)
+TEST_DECLARE   (tcp_reuseport)
 TEST_DECLARE   (tcp_rst)
 TEST_DECLARE   (tcp_bind6_error_addrinuse)
 TEST_DECLARE   (tcp_bind6_error_addrnotavail)
@@ -189,6 +190,7 @@ TEST_DECLARE   (udp_open_twice)
 TEST_DECLARE   (udp_open_bound)
 TEST_DECLARE   (udp_open_connect)
 TEST_DECLARE   (udp_recv_in_a_row)
+TEST_DECLARE   (udp_reuseport)
 #ifndef _WIN32
 TEST_DECLARE   (udp_send_unix)
 #endif
@@ -227,6 +229,7 @@ TEST_DECLARE   (timer_init)
 TEST_DECLARE   (timer_again)
 TEST_DECLARE   (timer_start_twice)
 TEST_DECLARE   (timer_order)
+TEST_DECLARE   (timer_zero_timeout)
 TEST_DECLARE   (timer_huge_timeout)
 TEST_DECLARE   (timer_huge_repeat)
 TEST_DECLARE   (timer_run_once)
@@ -351,6 +354,7 @@ TEST_DECLARE   (fs_file_nametoolong)
 TEST_DECLARE   (fs_file_loop)
 TEST_DECLARE   (fs_file_async)
 TEST_DECLARE   (fs_file_sync)
+TEST_DECLARE   (fs_posix_delete)
 TEST_DECLARE   (fs_file_write_null_buffer)
 TEST_DECLARE   (fs_async_dir)
 TEST_DECLARE   (fs_async_sendfile)
@@ -392,6 +396,7 @@ TEST_DECLARE   (fs_stat_missing_path)
 TEST_DECLARE   (fs_read_bufs)
 TEST_DECLARE   (fs_read_file_eof)
 TEST_DECLARE   (fs_event_watch_dir)
+TEST_DECLARE   (fs_event_watch_delete_dir)
 TEST_DECLARE   (fs_event_watch_dir_recursive)
 #ifdef _WIN32
 TEST_DECLARE   (fs_event_watch_dir_short_path)
@@ -468,6 +473,7 @@ TEST_DECLARE   (thread_rwlock_trylock)
 TEST_DECLARE   (thread_create)
 TEST_DECLARE   (thread_equal)
 TEST_DECLARE   (thread_affinity)
+TEST_DECLARE   (thread_priority)
 TEST_DECLARE   (dlerror)
 #if (defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))) && \
     !defined(__sun)
@@ -504,6 +510,9 @@ TEST_DECLARE   (listen_with_simultaneous_accepts)
 TEST_DECLARE   (listen_no_simultaneous_accepts)
 TEST_DECLARE   (fs_stat_root)
 TEST_DECLARE   (spawn_with_an_odd_path)
+TEST_DECLARE   (spawn_no_path)
+TEST_DECLARE   (spawn_no_ext)
+TEST_DECLARE   (spawn_path_no_ext)
 TEST_DECLARE   (ipc_listen_after_bind_twice)
 TEST_DECLARE   (win32_signum_number)
 #else
@@ -545,6 +554,7 @@ TEST_DECLARE  (fork_socketpair)
 TEST_DECLARE  (fork_socketpair_started)
 TEST_DECLARE  (fork_signal_to_child)
 TEST_DECLARE  (fork_signal_to_child_closed)
+TEST_DECLARE  (fork_close_signal_in_child)
 #ifndef __APPLE__ /* This is forbidden in a fork child: The process has forked
                      and you cannot use this CoreFoundation functionality
                      safely. You MUST exec(). */
@@ -556,6 +566,8 @@ TEST_DECLARE  (fork_fs_events_file_parent_child)
 TEST_DECLARE  (fork_threadpool_queue_work_simple)
 #endif
 #endif
+
+TEST_DECLARE  (iouring_pollhup)
 
 TEST_DECLARE  (idna_toascii)
 TEST_DECLARE  (utf8_decode1)
@@ -757,6 +769,8 @@ TASK_LIST_START
 
   TEST_ENTRY  (tcp_read_stop_start)
 
+  TEST_ENTRY  (tcp_reuseport)
+
   TEST_ENTRY  (tcp_rst)
   TEST_HELPER (tcp_rst, tcp4_echo_server)
 
@@ -793,6 +807,7 @@ TASK_LIST_START
   TEST_ENTRY  (udp_sendmmsg_error)
   TEST_ENTRY  (udp_try_send)
   TEST_ENTRY  (udp_recv_in_a_row)
+  TEST_ENTRY  (udp_reuseport)
 
   TEST_ENTRY  (udp_open)
   TEST_ENTRY  (udp_open_twice)
@@ -846,6 +861,7 @@ TASK_LIST_START
   TEST_ENTRY  (timer_again)
   TEST_ENTRY  (timer_start_twice)
   TEST_ENTRY  (timer_order)
+  TEST_ENTRY  (timer_zero_timeout)
   TEST_ENTRY  (timer_huge_timeout)
   TEST_ENTRY  (timer_huge_repeat)
   TEST_ENTRY  (timer_run_once)
@@ -1021,6 +1037,9 @@ TASK_LIST_START
   TEST_ENTRY  (listen_no_simultaneous_accepts)
   TEST_ENTRY  (fs_stat_root)
   TEST_ENTRY  (spawn_with_an_odd_path)
+  TEST_ENTRY  (spawn_no_path)
+  TEST_ENTRY  (spawn_no_ext)
+  TEST_ENTRY  (spawn_path_no_ext)
   TEST_ENTRY  (ipc_listen_after_bind_twice)
   TEST_ENTRY  (win32_signum_number)
 #else
@@ -1045,6 +1064,7 @@ TASK_LIST_START
   TEST_ENTRY  (fs_file_loop)
   TEST_ENTRY  (fs_file_async)
   TEST_ENTRY  (fs_file_sync)
+  TEST_ENTRY  (fs_posix_delete)
   TEST_ENTRY  (fs_file_write_null_buffer)
   TEST_ENTRY  (fs_async_dir)
   TEST_ENTRY  (fs_async_sendfile)
@@ -1086,6 +1106,7 @@ TASK_LIST_START
   TEST_ENTRY  (fs_read_file_eof)
   TEST_ENTRY  (fs_file_open_append)
   TEST_ENTRY  (fs_event_watch_dir)
+  TEST_ENTRY  (fs_event_watch_delete_dir)
   TEST_ENTRY  (fs_event_watch_dir_recursive)
 #ifdef _WIN32
   TEST_ENTRY  (fs_event_watch_dir_short_path)
@@ -1162,6 +1183,7 @@ TASK_LIST_START
   TEST_ENTRY  (thread_create)
   TEST_ENTRY  (thread_equal)
   TEST_ENTRY  (thread_affinity)
+  TEST_ENTRY  (thread_priority)
   TEST_ENTRY  (dlerror)
   TEST_ENTRY  (ip4_addr)
   TEST_ENTRY  (ip6_addr_link_local)
@@ -1182,6 +1204,7 @@ TASK_LIST_START
   TEST_ENTRY  (fork_socketpair_started)
   TEST_ENTRY  (fork_signal_to_child)
   TEST_ENTRY  (fork_signal_to_child_closed)
+  TEST_ENTRY  (fork_close_signal_in_child)
 #ifndef __APPLE__
   TEST_ENTRY  (fork_fs_events_child)
   TEST_ENTRY  (fork_fs_events_child_dir)
@@ -1191,6 +1214,8 @@ TASK_LIST_START
   TEST_ENTRY  (fork_threadpool_queue_work_simple)
 #endif
 #endif
+
+  TEST_ENTRY  (iouring_pollhup)
 
   TEST_ENTRY  (utf8_decode1)
   TEST_ENTRY  (utf8_decode1_overrun)

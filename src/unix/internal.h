@@ -157,7 +157,8 @@ typedef struct uv__stream_queued_fds_s uv__stream_queued_fds_t;
 /* loop flags */
 enum {
   UV_LOOP_BLOCK_SIGPROF = 0x1,
-  UV_LOOP_REAP_CHILDREN = 0x2
+  UV_LOOP_REAP_CHILDREN = 0x2,
+  UV_LOOP_ENABLE_IO_URING_SQPOLL = 0x4
 };
 
 /* flags of excluding ifaddr */
@@ -243,6 +244,7 @@ int uv__close(int fd); /* preserves errno */
 int uv__close_nocheckstdio(int fd);
 int uv__close_nocancel(int fd);
 int uv__socket(int domain, int type, int protocol);
+int uv__sock_reuseport(int fd);
 ssize_t uv__recvmsg(int fd, struct msghdr *msg, int flags);
 void uv__make_close_pending(uv_handle_t* handle);
 int uv__getiovmax(void);
@@ -425,6 +427,7 @@ UV_UNUSED(static int uv__stat(const char* path, struct stat* s)) {
 }
 
 #if defined(__linux__)
+void uv__fs_post(uv_loop_t* loop, uv_fs_t* req);
 ssize_t
 uv__fs_copy_file_range(int fd_in,
                        off_t* off_in,
@@ -469,6 +472,28 @@ uv__fs_copy_file_range(int fd_in,
 #define UV__CPU_AFFINITY_SUPPORTED 1
 #else
 #define UV__CPU_AFFINITY_SUPPORTED 0
+#endif
+
+#ifdef __linux__
+typedef struct {
+  long long quota_per_period;
+  long long period_length;
+  double proportions;
+} uv__cpu_constraint;
+
+int uv__get_constrained_cpu(uv__cpu_constraint* constraint);
+#endif
+
+#ifdef __sun
+#ifdef SO_FLOW_NAME
+/* Since it's impossible to detect the Solaris 11.4 version via OS macros,
+ * so we check the presence of the socket option SO_FLOW_NAME that was first
+ * introduced to Solaris 11.4 and define a custom macro for determining 11.4.
+ */
+#define UV__SOLARIS_11_4 (1)
+#else
+#define UV__SOLARIS_11_4 (0)
+#endif
 #endif
 
 #endif /* UV_UNIX_INTERNAL_H_ */
